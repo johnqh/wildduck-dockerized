@@ -2,79 +2,196 @@
 
 args=("$@")
 
+SERVICES="Wildduck, Zone-MTA, Haraka, Wildduck Webmail"
+
+echo "Setting up $SERVICES"
+
 if [ "$#" -gt "0" ]
   then
     # foo/bar -> bar
     MAILDOMAIN=${args[0]}
     HOSTNAME=${args[1]:-$MAILDOMAIN}
-    echo -e "DOMAINNAME: $MAILDOMAIN, HOSTNAME: $HOSTNAME"
+    FULL_SETUP=${args[2]:-false}
+
+    if [ "$HOSTNAME" = "full" ]; then
+        FULL_SETUP=$HOSTNAME
+        HOSTNAME=$MAILDOMAIN
+    fi
+
+    echo -e "DOMAINNAME: $MAILDOMAIN, HOSTNAME: $HOSTNAME, FULL_SETUP: $FULL_SETUP"
   else
-    echo -e "Got ZERO arguments, please read the readme for help."
-    exit
+    echo -e "You specified ZERO arguments, I will ask you for arguments directly \n"
+
+    read -p "Specify the DOMAIN of your server: " MAILDOMAIN
+    read -p "Perfect! The email domain is: $MAILDOMAIN. Do you wish to also specify the hostname? [y/N] " yn
+
+    case $yn in
+        [Yy]* ) read -p "Hostname of the machine: " HOSTNAME;;
+        [Nn]* ) echo "No hostname provided. Will use domain as hostname"; HOSTNAME=$MAILDOMAIN;;
+        * ) echo "No hostname provided. Will use domain as hostname"; HOSTNAME=$MAILDOMAIN;;
+    esac
+
+    echo -e "DOMAINNAME: $MAILDOMAIN, HOSTNAME: $HOSTNAME"
 fi
 
-if [ ! -d /wildduck-dockerized/config ]; then
-  echo "Copying default configuration"
-  cp -r /setup/default-config /wildduck-dockerized/config
-fi
-if [ ! -e /wildduck-dockerized/docker-compose.yml ]; then
-  echo "Copying default docker-compose.yml"
-  cp -r /setup/docker-compose.yml /wildduck-dockerized/docker-compose.yml
-fi
-if [ ! -e /wildduck-dockerized/.env ]; then
-  echo "Copying default .env"
-  cp -r /setup/example.env /wildduck-dockerized/.env
+if [ ! -e ./config-generated ]; then 
+    echo "Copying default configuration into ./config-generated/config-generated"
+    mkdir config-generated
+    cp -r ./default-config ./config-generated/config-generated
 fi
 
-
-echo "Replacing domains in configuration"
-
-# Zone-MTA
-sed -i "s/# name=\"example.com\"/name=\"$HOSTNAME\"/" /wildduck-dockerized/config/zone-mta/pools.toml
-sed -i "s/hostname=\"example.com\"/hostname=\"$HOSTNAME\"/" /wildduck-dockerized/config/zone-mta/plugins/wildduck.toml
-sed -i "s/rewriteDomain=\"example.com\"/rewriteDomain=\"$MAILDOMAIN\"/" /wildduck-dockerized/config/zone-mta/plugins/wildduck.toml
-
-# Wildduck
-sed -i "s/hostname=\"example.com\"/hostname=\"$HOSTNAME\"/" /wildduck-dockerized/config/wildduck/imap.toml
-sed -i "s/hostname=\"example.com\"/hostname=\"$HOSTNAME\"/" /wildduck-dockerized/config/wildduck/pop3.toml
-sed -i "s/hostname=\"example.com\"/hostname=\"$HOSTNAME\"/" /wildduck-dockerized/config/wildduck/default.toml
-sed -i "s/localhost:3000/$HOSTNAME/" /wildduck-dockerized/config/wildduck/default.toml
-sed -i "s/#emailDomain=\"mydomain.info\"/emailDomain=\"$MAILDOMAIN\"/" /wildduck-dockerized/config/wildduck/pop3.toml
-
-# Wildduck-webmail
-sed -i "s/domain=\"localhost\"/domain=\"$MAILDOMAIN\"/" /wildduck-dockerized/config/wildduck-webmail/default.toml
-sed -i "s/domains=\[\"localhost\"\]/domains=\[\"$MAILDOMAIN\"\]/" /wildduck-dockerized/config/wildduck-webmail/default.toml
-sed -i "s/#appId=\"https:\/\/127.0.0.1:8080\"/appId=\"https:\/\/$MAILDOMAIN\"/" /wildduck-dockerized/config/wildduck-webmail/default.toml
-sed -i "s/hostname=\"localhost\"/hostname=\"$HOSTNAME\"/g" /wildduck-dockerized/config/wildduck-webmail/default.toml
-
-# Haraka
-echo "$HOSTNAME" > /wildduck-dockerized/config/haraka/me
+# Docker compose
+echo "Copying default docker-compose to ./config-generated"
+cp ./docker-compose.yml ./config-generated/docker-compose.yml
 
 # Traefik
-sed -i "s/HOSTNAMES=example.com/HOSTNAMES=$HOSTNAME/" /wildduck-dockerized/.env
+echo "Copying Traefik config and replacing default configuration"
+cp -r ./dynamic_conf ./config-generated
+sed -i "s|\./config/|./config-generated/|g" ./config-generated/docker-compose.yml
+sed -i "s|HOSTNAME|$HOSTNAME|g" ./config-generated/docker-compose.yml
 
+# Certs for traefik
+USE_SELF_SIGNED_CERTS=false
+read -p "Do you wish to set up self-signed certs for development? (Y/n) " yn
 
+    case $yn in
+        [Yy]* ) USE_SELF_SIGNED_CERTS=true;;
+        [Nn]* ) USE_SELF_SIGNED_CERTS=false;;
+        * ) USE_SELF_SIGNED_CERTS=true;;
+    esac
 
-echo "Generating secrets and placing them in configuration"
+if $USE_SELF_SIGNED_CERTS; then
+    echo "Generating self-signed TLS Certs"
+    mkdir -p ./config-generated/certs
+
+    openssl genrsa -out ./config-generated/certs/rootCA.key 4096
+    openssl req -x509 -new -nodes -key ./config-generated/certs/rootCA.key -sha256 -days 3650 -out ./config-generated/certs/rootCA.pem -subj "/C=US/ST=State/L=City/O=Your Organization/CN=Your CA"
+    openssl genrsa -out ./config-generated/certs/$HOSTNAME.key 2048
+    openssl req -new -key ./config-generated/certs/$HOSTNAME.key -out ./config-generated/certs/$HOSTNAME.csr -subj "/C=US/ST=State/L=City/O=Your Organization/CN=$HOSTNAME"
+    cat > ./config-generated/certs/$HOSTNAME.ext << EOF
+authorityKeyIdentifier=keyid,issuer
+basicConstraints=CA:FALSE
+keyUsage = digitalSignature, nonRepudiation, keyEncipherment, dataEncipherment
+subjectAltName = @alt_names
+
+[alt_names]
+DNS.1 = $HOSTNAME
+DNS.2 = *.$HOSTNAME
+EOF
+    openssl x509 -req -in ./config-generated/certs/$HOSTNAME.csr -CA ./config-generated/certs/rootCA.pem -CAkey ./config-generated/certs/rootCA.key -CAcreateserial -out ./config-generated/certs/$HOSTNAME.crt -days 825 -sha256 -extfile ./config-generated/certs/$HOSTNAME.ext
+    mv ./config-generated/certs/$HOSTNAME.crt ./config-generated/certs/$HOSTNAME.pem
+    mv ./config-generated/certs/$HOSTNAME.key ./config-generated/certs/$HOSTNAME-key.pem
+fi
+
+if ! $USE_SELF_SIGNED_CERTS; then
+    # use let's encrypt
+    sed -i "s|# - \"--certificatesresolvers.letsencrypt.acme.email=ACME_EMAIL\"|- \"--certificatesresolvers.letsencrypt.acme.email=domainadmin@$MAILDOMAIN\"|g" ./config-generated/docker-compose.yml
+    sed -i "s|# - \"--certificatesresolvers.letsencrypt.acme.storage=/data/acme.json\"|- \"--certificatesresolvers.letsencrypt.acme.storage=/data/acme.json\"|g" ./config-generated/docker-compose.yml
+    sed -i "s|# - \"--certificatesresolvers.letsencrypt.acme.tlschallenge=true\"|- \"--certificatesresolvers.letsencrypt.acme.tlschallenge=true\"|g" ./config-generated/docker-compose.yml
+
+    # Uncomment the traefik.tcp.routers.zonemta.tls.certresolver line
+    sed -i "s|# traefik.tcp.routers.zonemta.tls.certresolver: letsencrypt|traefik.tcp.routers.zonemta.tls.certresolver: letsencrypt|g" ./config-generated/docker-compose.yml
+
+    # Uncomment the traefik.tcp.routers.wildduck-pop3s.tls.certresolver line
+    sed -i "s|# traefik.tcp.routers.wildduck-pop3s.tls.certresolver: letsencrypt|traefik.tcp.routers.wildduck-pop3s.tls.certresolver: letsencrypt|g" ./config-generated/docker-compose.yml
+
+    # Uncomment the traefik.tcp.routers.wildduck-imaps.tls.certresolver line
+    sed -i "s|# traefik.tcp.routers.wildduck-imaps.tls.certresolver: letsencrypt|traefik.tcp.routers.wildduck-imaps.tls.certresolver: letsencrypt|g" ./config-generated/docker-compose.yml
+
+    # Uncomment the traefik.http.routers.wildduck-webmail.tls.certresolver line
+    sed -i "s|# traefik.http.routers.wildduck-webmail.tls.certresolver: letsencrypt|traefik.http.routers.wildduck-webmail.tls.certresolver: letsencrypt|g" ./config-generated/docker-compose.yml
+
+    # Delete the traefik.tcp.routers.zonemta.tls: true line
+    sed -i "/traefik.tcp.routers.zonemta.tls: true/d" ./config-generated/docker-compose.yml
+
+    # Delete the traefik.tcp.routers.wildduck-pop3s.tls: true line
+    sed -i "/traefik.tcp.routers.wildduck-pop3s.tls: true/d" ./config-generated/docker-compose.yml
+
+    # Delete the traefik.tcp.routers.wildduck-imaps.tls: true line
+    sed -i "/traefik.tcp.routers.wildduck-imaps.tls: true/d" ./config-generated/docker-compose.yml
+
+    # Delete the traefik.http.routers.wildduck-webmail.tls: true line
+    sed -i "/traefik.http.routers.wildduck-webmail.tls: true/d" ./config-generated/docker-compose.yml
+
+    sed -i "/- \.\/dynamic_conf:\/etc\/traefik\/dynamic_conf:ro/d" ./config-generated/docker-compose.yml
+
+    # Delete the providers.file=true line
+    sed -i '/- "--providers.file=true"/d' ./config-generated/docker-compose.yml
+
+    # Delete the providers.file.directory line
+    sed -i '/- "--providers.file.directory=\/etc\/traefik\/dynamic_conf"/d' ./config-generated/docker-compose.yml
+
+    # Delete the providers.file.watch line
+    sed -i '/- "--providers.file.watch=true"/d' ./config-generated/docker-compose.yml
+
+    # Delete the serversTransport.insecureSkipVerify line
+    sed -i '/- "--serversTransport.insecureSkipVerify=true"/d' ./config-generated/docker-compose.yml
+
+    # Delete the serversTransport.rootCAs line
+    sed -i '/- "--serversTransport.rootCAs=\/etc\/traefik\/certs\/rootCA.pem"/d' ./config-generated/docker-compose.yml
+
+    # Delete the log.level=DEBUG line
+    sed -i '/- "--log.level=DEBUG"/d' ./config-generated/docker-compose.yml
+
+    # Delete the certs line
+    sed -i '/- ./certs:/etc/traefik/certs  # Mount your certs directory/d' ./config-generated/docker-compose.yml
+fi
+
+echo "Replacing domains in $SERVICES configuration"
+
+# Zone-MTA
+sed -i "s/name=\"example.com\"/name=\"$HOSTNAME\"/" ./config-generated/config-generated/zone-mta/pools.toml
+sed -i "s/hostname=\"email.example.com\"/hostname=\"$HOSTNAME\"/" ./config-generated/config-generated/zone-mta/plugins/wildduck.toml
+sed -i "s/rewriteDomain=\"email.example.com\"/rewriteDomain=\"$MAILDOMAIN\"/" ./config-generated/config-generated/zone-mta/plugins/wildduck.toml
+
+# Wildduck
+sed -i "s/hostname=\"email.example.com\"/hostname=\"$HOSTNAME\"/" ./config-generated/config-generated/wildduck/imap.toml
+sed -i "s/hostname=\"email.example.com\"/hostname=\"$HOSTNAME\"/" ./config-generated/config-generated/wildduck/pop3.toml
+sed -i "s/hostname=\"email.example.com\"/hostname=\"$HOSTNAME\"/" ./config-generated/config-generated/wildduck/default.toml
+sed -i "s/rpId=\"email.example.com\"/rpId=\"$HOSTNAME\"/" ./config-generated/config-generated/wildduck/default.toml
+sed -i "s/emailDomain=\"email.example.com\"/emailDomain=\"$MAILDOMAIN\"/" ./config-generated/config-generated/wildduck/default.toml
+
+echo "Generating secrets and placing them in $SERVICES configuration"
 
 SRS_SECRET=`head /dev/urandom | tr -dc A-Za-z0-9 | head -c30`
 ZONEMTA_SECRET=`head /dev/urandom | tr -dc A-Za-z0-9 | head -c30`
-WEBMAIL_SECRET=`head /dev/urandom | tr -dc A-Za-z0-9 | head -c30`
-WEBMAIL_TOTP_SECRET=`head /dev/urandom | tr -dc A-Za-z0-9 | head -c30`
+DKIM_SECRET=`head /dev/urandom | tr -dc A-Za-z0-9 | head -c30`
+ACCESS_TOKEN=`head /dev/urandom | tr -dc A-Za-z0-9 | head -c30`
+HMAC_SECRET=`head /dev/urandom | tr -dc A-Za-z0-9 | head -c30`
 
 # Zone-MTA
-sed -i "s/secret=\"super secret value\"/secret=\"$ZONEMTA_SECRET\"/" /wildduck-dockerized/config/zone-mta/plugins/loop-breaker.toml
-sed -i "s/secret=\"secret value\"/secret=\"$SRS_SECRET\"/" /wildduck-dockerized/config/zone-mta/plugins/wildduck.toml
+sed -i "s/secret=\"super secret value\"/secret=\"$ZONEMTA_SECRET\"/" ./config-generated/config-generated/zone-mta/plugins/loop-breaker.toml
+sed -i "s/secret=\"secret value\"/secret=\"$SRS_SECRET\"/" ./config-generated/config-generated/zone-mta/plugins/wildduck.toml
+sed -i "s/secret=\"super secret key\"/secret=\"$DKIM_SECRET\"/" ./config-generated/config-generated/zone-mta/plugins/wildduck.toml
 
 # Wildduck
-sed -i "s/#loopSecret=\"secret value\"/loopSecret=\"$SRS_SECRET\"/" /wildduck-dockerized/config/wildduck/sender.toml
-
-# Wildduck-webmail
-sed -i "s/secret=\"a cat\"/secret=\"$WEBMAIL_SECRET\"/" /wildduck-dockerized/config/wildduck-webmail/default.toml
-sed -i "s/secret=\"a secret cat\"/secret=\"$WEBMAIL_TOTP_SECRET\"/" /wildduck-dockerized/config/wildduck-webmail/default.toml
+sed -i "s/#loopSecret=\"secret value\"/loopSecret=\"$SRS_SECRET\"/" ./config-generated/config-generated/wildduck/sender.toml
+sed -i "s/secret=\"super secret key\"/secret=\"$DKIM_SECRET\"/" ./config-generated/config-generated/wildduck/dkim.toml
+sed -i "s/accessToken=\"somesecretvalue\"/accessToken=\"$ACCESS_TOKEN\"/" ./config-generated/config-generated/wildduck/api.toml
+sed -i "s/secret=\"a secret cat\"/secret=\"$HMAC_SECRET\"/" ./config-generated/config-generated/wildduck/api.toml
+sed -i "s/\"domainadmin@example.com\"/\"domainadmin@$MAILDOMAIN\"/" ./config-generated/config-generated/wildduck/acme.toml
+sed -i "s/\"https:\/\/wildduck.email\"/\"https:\/\/$MAILDOMAIN\"/" ./config-generated/config-generated/wildduck/acme.toml
 
 # Haraka
-sed -i "s/#loopSecret=\"secret value\"/loopSecret=\"$SRS_SECRET\"/" /wildduck-dockerized/config/haraka/wildduck.yaml
+sed -i "s/#loopSecret: \"secret value\"/loopSecret: \"$SRS_SECRET\"/" ./config-generated/config-generated/haraka/wildduck.yaml
+sed -i "s/secret: \"secret value\"/secret: \"$SRS_SECRET\"/" ./config-generated/config-generated/haraka/wildduck.yaml
 
+# Webmail
+sed -i "s|example\.com|$HOSTNAME|g" ./config-generated/config-generated/wildduck-webmail/default.toml
+sed -i "s|accessToken=\"\"|accessToken=\"$ACCESS_TOKEN\"|g" ./config-generated/config-generated/wildduck-webmail/default.toml
 
 echo "Done!"
+
+if [ "$FULL_SETUP" != "full" ]; then 
+    read -p "Do you wish to continue and set up the DNS? [Y/n] " yn
+
+    case $yn in
+        [Yy]* ) FULL_SETUP="full";;
+        [Nn]* ) echo "$SERVICES setup finished! Exiting..."; exit;;
+        * ) FULL_SETUP="full";;
+    esac
+fi
+
+if [ "$FULL_SETUP" = "full" ]; then 
+    source "./setup-scripts/dns_setup.sh"
+fi
