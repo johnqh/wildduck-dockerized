@@ -12,43 +12,27 @@ The default docker-compose file will set up:
 | MongoDB          | Database used by most services                            | 
 | Redis            | Key-value store used by most services                     | 
 
-For the default docker-compose file to work without any further setup, you need port 80/443 available for Traefik to get certificates. However, the compose file is not set in stone. You can remove Traefik from the equation and use your own reverse proxy (or configure the applications to handle TLS directly), remove certain services, etc.
+For the default docker-compose file to work without any further setup, you need port 80/443 available for Traefik to get certificates or provide your own certificates mounted as a volume. However, the compose file is not set in stone. You can remove Traefik from the equation and use your own reverse proxy (or configure the applications to handle TLS directly), remove certain services, etc.
 
 No STARTTLS support, only SSL/TLS.
 
-## Set up Docker
-Install Docker:
-```console
-$ curl -fsSL https://get.docker.com -o get-docker.sh
-$ sh get-docker.sh
-```
-
-Install docker-compose
-```console
-$ sudo curl -L "https://github.com/docker/compose/releases/download/1.28.2/docker-compose-$(uname -s)-$(uname -m)" -o /usr/local/bin/docker-compose
-$ sudo chmod +x /usr/local/bin/docker-compose
-```
+Before starting please don't forget to install `Docker` and `Docker compose`
 
 ## Deploy Wildduck: dockerized
-Create a new directory and run the setup docker image. The image only copies the default `config` folder, `.env`, `docker-compose.yml`, and edits them for your domain. It does not install anything on the host system.
+> For easy setup and startup use the provided `setup.sh` file (only works on Linux or Mac). The "wizard" provided by the script will ask necessary questions required for setting up the suite quickly and easily. The wizard will set up the configuration, secrets, self-signed certs (if required for development), optionally DNS and optionally will create the first user.    
 
-The setup image takes 1-2 arguments. The domain for your email (e.g `example.com`), and the hostname where your mail server will be (e.g `mail.example.com`). They can be the same host, if you host your website on the same server for example.
-```console
-$ mkdir wildduck-dockerized
-$ cd wildduck-dockerized
-$ docker run --rm -v "${PWD}:/wildduck-dockerized" nodemailer/wildduck-dockerized-setup:1.0.2 domainname [hostname]
-```
+Keep in mind that the provided setup script is a basic setup that is intended to set you up quickly for either local development or testing, or to set you up with a simple working email suite on a server (such as a VPS). So for more granular configuration please refer to the appropriate documentation of the used applications and update the config files accordingly. Don't forget to restart the containers after configuration changes.
 
-Optionally set your contact address in the `.env` file for lets encrypt expiry notices:
-```sh
-# Used as the lets encrypt contact address for expiry notices: https://letsencrypt.org/docs/expiration-emails/
-ACME_EMAIL=john@example.com
-```
+> Note! Haraka handles certificates completely separately. So in order to have Haraka with TLS you will have to either mount a `:rw` from traefik onto your local system so that traefik can save the certs on local system and then Haraka can pick them up, or you will need to issue certs for Haraka/SMTP domain beforehand and include them in the specified folder that is set in the `docker-compose.yml` file.
 
-Deploy using docker-compose:
-```console
-$ docker-compose up -d
-```
+Additionally, the provided setup currently uses a very basic setup where all the services are ran on the same domain. Ideally you'd want to run outbound smtps (port 465), imap, pop3, inbound smtp (port 25 Haraka), on different domains and have separate certs for them (will be handled by Traefik automatically, except for Haraka). For database and redis sharding refer to Wildduck and Zone-MTA documentation.  
+The provided setup also sets you up with basic DNS settings that "work right out the box". Additionally the provided setup script can create the first user for you. For user creation refer to Wildduck documentation at https://docs.wildduck.email.
+
+## Connecting Thunderbird if using self-signed certificates
+It may be required to import the generated CA file to Thunderbird in order for it
+to connect to IMAP and SMTP. You can fine the generated CA file in `config-generated/certs/rootCA.pem`.
+If using letsencrypt on a publicly accessible DNS then Thunderbird should connect just fine
+as with any other email server.
 
 ## Custom configuration
-Configuration files for all services reside in `./config`. Alter them in whichever way you want, and restart the service in question.
+Configuration files for all services reside in `./config-generated`. Alter them in whichever way you want, and restart the service in question.
