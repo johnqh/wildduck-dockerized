@@ -4,7 +4,7 @@ title="wildduck-www"
 
 [service]
     # email domain for new users
-    domain="localhost"
+    domain="example.com"
     # default quotas for new users
     quota=1024
     recipients=2000
@@ -14,7 +14,7 @@ title="wildduck-www"
     allowJoin=true
     enableSpecial=false # if true the allow creating addresses with special usernames
     # allowed domains for new addresses
-    domains=["localhost"]
+    domains=["example.com"]
 
     generalNotification="" # static notification to show on top of the page
 
@@ -41,7 +41,7 @@ title="wildduck-www"
     proxy=false
     postsize="5MB"
     log="dev"
-    secret="a cat"
+    secret="kfUp3bnprIUwnBbzszeH6rlsKT98X1"
     secure=false
     listSize=20
 
@@ -54,13 +54,13 @@ title="wildduck-www"
     # Issuer name for TOTP, defaults to config.name
     issuer=false
     # once setup do not change as it would invalidate all existing 2fa sessions
-    secret="a secret cat"
+    secret="XJXVcM6C6GbcvPGZekrRalOmUAq7BJ"
 
 [u2f]
     # set to false if not using HTTPS
     enabled=true
     # must be https url or use default
-    #appId="https://127.0.0.1:8080"
+    appId="https://example.com"
 
 [log]
     level="silly"
@@ -69,14 +69,14 @@ title="wildduck-www"
 [setup]
     # these values are shown in the configuration help page
     [setup.imap]
-        hostname="localhost"
+        hostname="example.com"
         secure=true
         port=993
     [setup.pop3]
-        hostname="localhost"
+        hostname="example.com"
         secure=true
         port=995
     [setup.smtp]
-        hostname="localhost"
+        hostname="example.com"
         secure=true
         port=465

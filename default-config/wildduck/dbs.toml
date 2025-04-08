@@ -1,5 +1,5 @@
 # mongodb connection string for the main database
-mongo="mongodb://mongo:27017/wildduck"
+mongo = "mongodb://mongo:27017/wildduck"
 
 # redis connection string to connect to a single master (see below for Sentinel example)
 #redis="redis://127.0.0.1:6379/3"
@@ -22,14 +22,14 @@ mongo="mongodb://mongo:27017/wildduck"
 
 # Optional database name or connection url for ZoneMTA queue database. This is
 # used to push outbound emails to the sending queue
-sender="zone-mta"
+sender = "zone-mta"
 
 #queued="mail"
 
 [redis]
-host="redis"
-port=6379
-db=3
+host = "redis"
+port = 6379
+db = 3
 
 ## Connect to Redis Sentinel instead of single master
 # [redis]

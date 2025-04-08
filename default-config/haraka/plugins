@@ -1,6 +1,3 @@
-spf
-dkim_verify
-
 ## ClamAV is disabled by default. Make sure freshclam has updated all
 ## virus definitions and clamav-daemon has successfully started before
 ## enabling it.
