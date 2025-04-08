@@ -134,7 +134,7 @@ if ! $USE_SELF_SIGNED_CERTS; then
     sed -i '/- "--log.level=DEBUG"/d' ./config-generated/docker-compose.yml
 
     # Delete the certs line
-    sed -i '/- ./certs:/etc/traefik/certs  # Mount your certs directory/d' ./config-generated/docker-compose.yml
+    sed -i '/- \.\/certs:\/etc\/traefik\/certs.*# Mount your certs directory/d' ./config-generated/docker-compose.yml
 fi
 
 echo "Replacing domains in $SERVICES configuration"
