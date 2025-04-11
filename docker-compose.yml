@@ -81,8 +81,8 @@ services:
       - rspamd
     volumes:
       - ./config/haraka:/app/config
-      - ./certs/wildduck.dockerized.test-key.pem:/app/config/tls_key.pem
-      - ./certs/wildduck.dockerized.test.pem:/app/config/tls_cert.pem
+      - ./certs/HOSTNAME-key.pem:/app/config/tls_key.pem
+      - ./certs/HOSTNAME.pem:/app/config/tls_cert.pem
 
   rspamd:
     image: nodemailer/rspamd

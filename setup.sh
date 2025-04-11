@@ -83,6 +83,13 @@ EOF
     mv ./config-generated/certs/$HOSTNAME.key ./config-generated/certs/$HOSTNAME-key.pem
 fi
 
+# Haraka certs settings
+# Replace the key line
+sed -i 's|./certs/HOSTNAME-key.pem|./certs/$HOSTNAME-key.pem|g' ./config-generated/docker-compose.yml
+
+# Replace the cert line
+sed -i 's|./certs/HOSTNAME.pem|./certs/$HOSTNAME.pem|g' ./config-generated/docker-compose.yml
+
 if ! $USE_SELF_SIGNED_CERTS; then
     # use let's encrypt
     sed -i "s|# - \"--certificatesresolvers.letsencrypt.acme.email=ACME_EMAIL\"|- \"--certificatesresolvers.letsencrypt.acme.email=domainadmin@$MAILDOMAIN\"|g" ./config-generated/docker-compose.yml
@@ -179,6 +186,43 @@ sed -i "s/secret: \"secret value\"/secret: \"$SRS_SECRET\"/" ./config-generated/
 # Webmail
 sed -i "s|example\.com|$HOSTNAME|g" ./config-generated/config-generated/wildduck-webmail/default.toml
 sed -i "s|accessToken=\"\"|accessToken=\"$ACCESS_TOKEN\"|g" ./config-generated/config-generated/wildduck-webmail/default.toml
+
+# Haraka certs from Traefik
+if ! $USE_SELF_SIGNED_CERTS; then
+    echo "Getting certs for Haraka from Traefik"
+
+    CURRENT_DIR=$(basename "$(pwd)")
+    if [ -f "docker-compose.yml" ] && [ "$CURRENT_DIR" = "config-generated" ]; then
+        docker compose up traefik -d 
+    else
+        cd ./config-generated/ 
+        docker compose up traefik -d
+        cd ../
+    fi
+
+    sleep 1 # Just in case
+    
+    mkdir ./config-generated/certs/
+    CERT_FILE="./config-generated/certs/$HOSTNAME.pem"
+    KEY_FILE="./config-generated/certs/$HOSTNAME-key.pem"
+
+    CONTAINER_ID=$(docker ps --filter "name=traefik" --format "{{.ID}}")
+    docker cp $CONTAINER_ID:/data/acme.json ./acme.json
+
+    # Extract the certificate
+    CERT=$(jq -r --arg domain "$HOSTNAME" '.letsencrypt.Certificates[] | select(.domain.main == $domain) | .certificate' acme.json)
+    
+    # Extract the private key
+    KEY=$(jq -r --arg domain "$HOSTNAME" '.letsencrypt.Certificates[] | select(.domain.main == $domain) | .key' acme.json)
+
+    # Decode and save certificate
+    echo "$CERT" | base64 -d > "$CERT_FILE"
+
+    # Decode and save private key
+    echo "$KEY" | base64 -d > "$KEY_FILE"
+
+    docker stop $CONTAINER_ID
+fi
 
 echo "Done!"
 

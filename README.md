@@ -19,7 +19,7 @@ No STARTTLS support, only SSL/TLS.
 Before starting please don't forget to install `Docker` and `Docker compose`
 
 ## Deploy Wildduck: dockerized
-> For easy setup and startup use the provided `setup.sh` file (only works on Linux or Mac). The "wizard" provided by the script will ask necessary questions required for setting up the suite quickly and easily. The wizard will set up the configuration, secrets, self-signed certs (if required for development), optionally DNS and optionally will create the first user.    
+> For easy setup and startup use the provided `setup.sh` file (only works on Linux or Mac). The "wizard" provided by the script will ask necessary questions required for setting up the suite quickly and easily. The wizard will set up the configuration, secrets, self-signed certs (if required for development), optionally DNS and optionally will create the first user.
 
 Keep in mind that the provided setup script is a basic setup that is intended to set you up quickly for either local development or testing, or to set you up with a simple working email suite on a server (such as a VPS). So for more granular configuration please refer to the appropriate documentation of the used applications and update the config files accordingly. Don't forget to restart the containers after configuration changes.
 
