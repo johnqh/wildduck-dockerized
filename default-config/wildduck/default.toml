@@ -3,61 +3,59 @@
 # If you do not use privileged ports then you can start the app already under required user account
 #user="wildduck"
 #group="wildduck"
+emailDomain="email.example.com"
 
 # process title
-ident="wildduck"
+ident = "wildduck"
 
 # how many processes to start
-processes=1
+# either a number for specific process count or "cpus" for machine thread count
+processes = 1
 
-# default quota storage in MB (can be overriden per user)
-maxStorage=1024
-
-# default smtp recipients for 24h (can be overriden per user)
-maxRecipients=2000
-
-# default forwarded messages for 24h (can be overriden per user)
-maxForwards=2000
-
-# If usernames are not email addresses then use this domain as hostname part
+# If usernames are not email addresses then use this domain as default hostname part
 #emailDomain="mydomain.info"
 
 [dbs]
 # @include "dbs.toml"
 
 [totp]
-    # If enabled then encrypt TOTP seed tokens with the secret password. By default TOTP seeds
-    # are not encrypted and stored as cleartext. Once set up do not change these values,
-    # otherwise decrypting totp seeds is going to fail
-    #cipher="aes192"
-    #secret="a secret cat"
+# If enabled then encrypt TOTP seed tokens with the secret password. By default TOTP seeds
+# are not encrypted and stored as cleartext. Once set up do not change these values,
+# otherwise decrypting totp seeds is going to fail
+#secret="a secret cat"
+#cipher="aes192" # only for decrypting legacy values (if there are any)
 
-[u2f]
-    # Fully qualified URL of your website (must use HTTPS!)
-    appId="https://localhost:3000"
+[webauthn]
+rpId="email.example.com"       # origin domain
+rpName="WildDuck Email Server"
+
+challengeSize=64
+attestation="none"
+authenticatorUserVerification="discouraged"
 
 [attachments]
 # @include "attachments.toml"
 
 [log]
-    level="error"
+level = "silly"
 
-    skipFetchLog=false # if true, then does not output individual * FETCH responses to log
+skipFetchLog = false # if true, then does not output individual * FETCH responses to log
 
-    # delete authentication log entries after 30 days
-    # changing this value only affects new entries
-    # set to false to not log authentication events
-    # set to 0 to keep the logs infinitely
-    authlogExpireDays=30
+# delete authentication log entries after 30 days
+# changing this value only affects new entries
+# set to false to not log authentication events
+# set to 0 to keep the logs infinitely
+# NB! Removed. Use const:authlog:time setting instead
+#authlogExpireDays=30
 
-    [log.gelf]
-        enabled=false
-        hostname=false # defaults to os.hostname()
-        component="wildduck"
-        [log.gelf.options]
-            graylogPort=12201
-            graylogHostname="127.0.0.1"
-            connection="lan"
+[log.gelf]
+enabled = false
+hostname = false       # defaults to os.hostname()
+component = "wildduck"
+[log.gelf.options]
+graylogPort = 12201
+graylogHostname = "graylog"
+connection = "wan"
 
 [imap]
 # @include "imap.toml"
@@ -83,20 +81,36 @@ maxForwards=2000
 [acme]
 # @include "acme.toml"
 
+[certs]
+# Encrypt stored TLS private keys with the following password (disabled by default):
+#secret="a secret cat"
+#cipher="aes192" # only for decrypting legacy values (if there are any)
+
 [plugins]
-# @include "plugins/*.toml"
+# @include "plugins.toml"
 
 [tasks]
 # if enabled then process jobs like deleting expired messages etc
-enabled=true
+enabled = true
 
 [smtp.setup]
 # Public configuration for SMTP MDA, needed for mobileconfig files
-hostname="localhost"
-secure=true
-port=465
+hostname = "email.example.com"
+secure = true
+port = 465
 
 [webhooks]
 # At least one server must have webhook processing enabled,
 # otherwise events would pile up in the Redis queue.
 enabled = true
+
+[elasticsearch]
+enabled = false
+url = "http://127.0.0.1:9200"
+user = "elastic"
+pass = "supersecret"
+index = "wildduck"
+
+[elasticsearch.indexer]
+# idexing worker
+enabled = false

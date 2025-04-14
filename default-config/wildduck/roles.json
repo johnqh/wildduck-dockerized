@@ -75,6 +75,13 @@
             "delete:any": ["*"]
         },
 
+        "certs": {
+            "create:any": ["*"],
+            "read:any": ["*"],
+            "update:any": ["*"],
+            "delete:any": ["*"]
+        },
+
         "dkim": {
             "create:any": ["*"],
             "read:any": ["*"],
@@ -97,6 +104,13 @@
         },
 
         "webhooks": {
+            "create:any": ["*"],
+            "read:any": ["*"],
+            "update:any": ["*"],
+            "delete:any": ["*"]
+        },
+
+        "settings": {
             "create:any": ["*"],
             "read:any": ["*"],
             "update:any": ["*"],
@@ -146,6 +160,13 @@
         },
 
         "filters": {
+            "create:any": ["*"],
+            "read:any": ["*"],
+            "update:any": ["*"],
+            "delete:any": ["*"]
+        },
+
+        "certs": {
             "create:any": ["*"],
             "read:any": ["*"],
             "update:any": ["*"],
@@ -275,7 +296,8 @@
         },
 
         "authentication": {
-            "read:own": ["*"]
+            "read:own": ["*"],
+            "create:own": ["*"]
         },
 
         "userlisting": {
@@ -368,6 +390,37 @@
             "read:any": ["*"],
             "update:any": ["*"],
             "delete:any": ["*"]
+        }
+    },
+
+    "auditclient": {
+        "audit": {
+            "read:any": ["*"]
+        }
+    },
+
+    "export": {
+        "export": {
+            "create:any": ["*"]
+        },
+
+        "import": {
+            "create:any": ["*"]
+        }
+    },
+
+    "settings": {
+        "settings": {
+            "create:any": ["*"],
+            "read:any": ["*"],
+            "update:any": ["*"],
+            "delete:any": ["*"]
+        }
+    },
+
+    "downloader": {
+        "messages": {
+            "read:any": ["*"]
         }
     }
 }
