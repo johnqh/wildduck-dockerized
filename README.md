@@ -47,7 +47,7 @@ Configuration files for all services reside in `./config-generated`. Alter them 
 
 - ensure you have docker installed
 - ensure you have docker compose installed
-- ensure node is isntalled
+- ensure node is installed
 - ensure you have a domain name
 - esnure dns record is added to your domain for the VPS
 - you have certbot installed, required for ssl certificates
@@ -67,7 +67,7 @@ Configuration files for all services reside in `./config-generated`. Alter them 
 
 ## finishing the setup
 
-- The ACCESS_TOKEN used by the api will be present in the `./config-generated/wildduck/api.toml in the sercet value
+- The ACCESS_TOKEN used by the api will be present in the `./config-generated/config-generated/wildduck/api.toml in the accessToken value
 - set DNS records for DKIM signing
   - open the file called `<HOSTNAME>-nameserver.txt` in `./config-generated/config-generated`
   - you will need to add 4 dns records in you DNS manger
@@ -76,6 +76,11 @@ Configuration files for all services reside in `./config-generated`. Alter them 
     ```
     <RECORD_NAME> IN <TYPE> <VALUE>
     ```
+
+## Info
+
+- The ACCESS_TOKEN used by the api will be present in the `./config-generated/wildduck/api.toml in the sercet value
+- The wildduck api is available at `https://<domain_name>/api`
 
 ### Update
 

@@ -3,7 +3,7 @@ volumes:
   mongo:
   redis:
   traefik:
-services: 
+services:
   wildduck:
     image: ghcr.io/zone-eu/wildduck:1.45.5
     restart: unless-stopped
@@ -30,11 +30,23 @@ services:
       traefik.tcp.routers.wildduck-pop3s.tls: true
       traefik.tcp.routers.wildduck-pop3s.service: wildduck-pop3s
       traefik.tcp.services.wildduck-pop3s.loadbalancer.server.port: 110
+      # --- NEW LABELS FOR WILDDUCK API on /api PATH ---
+      traefik.http.routers.wildduck-api-path.entrypoints: websecure # Expose over HTTPS
+      # Rule: Match the host and require the /api path prefix
+      traefik.http.routers.wildduck-api-path.rule: Host(`mail.software-smith.in`) && PathPrefix(`/api`)
+      traefik.http.routers.wildduck-api-path.tls.certresolver: letsencrypt # Get a Let's Encrypt cert
+      # Apply the middleware to strip the /api prefix before forwarding to Wildduck
+      traefik.http.routers.wildduck-api-path.middlewares: wildduck-api-stripprefix@docker
+      # Route to Wildduck's internal API port (8080)
+      traefik.http.services.wildduck-api-path.loadbalancer.server.port: 8080
 
+      # Middleware definition: This must be on the same level as the router/service definitions
+      # It creates a middleware named 'wildduck-api-stripprefix'
+      traefik.http.middlewares.wildduck-api-stripprefix.stripprefix.prefixes: /api
   wildduck-webmail:
     image: nodemailer/wildduck-webmail:latest
     restart: unless-stopped
-    command: 
+    command:
       - ""
     # ports:
     #   - 3000:3000 # for local testing
@@ -47,9 +59,8 @@ services:
     labels:
       traefik.enable: true
       traefik.http.routers.wildduck-webmail.entrypoints: websecure
-      traefik.http.routers.wildduck-webmail.rule: Host(`HOSTNAME`)
-      traefik.http.routers.wildduck-webmail.tls: true
-      # traefik.http.routers.wildduck-webmail.tls.certresolver: letsencrypt
+      traefik.http.routers.wildduck-webmail.rule: Host(`mail.software-smith.in`) && !PathPrefix(`/api`) # IMPORTANT: Exclude /api path
+      traefik.http.routers.wildduck-webmail.tls.certresolver: letsencrypt
       traefik.http.services.wildduck-webmail.loadbalancer.server.port: 3000
 
   zonemta:
@@ -57,7 +68,7 @@ services:
     restart: unless-stopped
     # ports:
     #   - "587:587" # for local testing
-    depends_on: 
+    depends_on:
       - mongo
       - redis
     volumes:
@@ -99,7 +110,7 @@ services:
     restart: unless-stopped
     volumes:
       - mongo:/data/db
-    
+
   redis:
     image: redis:alpine
     restart: unless-stopped
@@ -132,7 +143,7 @@ services:
       traefik.http.routers.redirs.entrypoints: web
       traefik.http.routers.redirs.middlewares: redirect-to-https
       traefik.http.routers.redirs.rule: hostregexp(`{host:.+}`)
-      
+
     ports:
       - 80:80/tcp
       - 443:443/tcp
@@ -142,5 +153,6 @@ services:
     volumes:
       - /var/run/docker.sock:/var/run/docker.sock:ro
       - traefik:/data
-      - ./certs:/etc/traefik/certs  # Mount your certs directory
+      - ./certs:/etc/traefik/certs # Mount your certs directory
       - ./dynamic_conf:/etc/traefik/dynamic_conf:ro
+
