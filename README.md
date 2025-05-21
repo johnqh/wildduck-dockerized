@@ -88,4 +88,15 @@ Configuration files for all services reside in `./config-generated`. Alter them 
 
   #restart service
   docker restart <service_name>
+
   ```
+
+# run tests
+
+- ensure node is installed (optional bun)
+
+- run `npm install` or `bun install`
+
+- rename `.env.example` to `.env` and fill in the required values
+
+- run `npm run test` or `bun test`

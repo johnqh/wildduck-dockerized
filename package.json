@@ -1,0 +1,28 @@
+{
+  "name": "wildduck-dockerized",
+  "module": "index.ts",
+  "type": "module",
+  "private": true,
+  "scripts": {
+    "test": "jest",
+    "deploy": "./setup.sh",
+    "update-certs": "./update_certs.sh"
+  },
+  "devDependencies": {
+    "@types/bun": "latest",
+    "dotenv": "^16.5.0",
+    "imap-simple": "^5.1.0",
+    "nodemailer": "^7.0.3"
+  },
+  "peerDependencies": {
+    "typescript": "^5"
+  },
+  "dependencies": {
+    "@types/imap-simple": "^4.2.10",
+    "@types/jest": "^29.5.14",
+    "@types/nodemailer": "^6.4.17",
+    "jest": "^29.7.0",
+    "ts-jest": "^29.3.4",
+    "ts-node": "^10.9.2"
+  }
+}
