@@ -1,3 +1,15 @@
+#node files
+
+node_modules
+
+#env 
+.env
+.env.local
+.env.*.local
+
+#jest
+test-results
+
 config
 .env
 config-generated
