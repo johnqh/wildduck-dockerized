@@ -80,6 +80,7 @@ Configuration files for all services reside in `./config-generated`. Alter them 
 ## Info
 
 - The ACCESS_TOKEN used by the api will be present in the `./config-generated/wildduck/api.toml in the sercet value
+- the token is used to authenticate the api calls add header `X-Access-Token: <accessToken>` [read this](https://docs.wildduck.email/docs/wildduck-api/wildduck-api)
 - The wildduck api is available at `https://<domain_name>/api`
 
 ### Update
