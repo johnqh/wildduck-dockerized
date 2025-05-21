@@ -1,7 +1,7 @@
 
-import { Message } from 'imap-simple';
 import { createUser, deleteUser } from '../utils/usersApi';
 import { fetchInbox, sendMail } from '../utils/mailUtils';
+import { sleep } from '../utils/time';
 
 const DOMAIN_NAME = process.env.DOMAIN_NAME;
 const testUsernName = `user_${Date.now()}`;
@@ -52,8 +52,7 @@ describe('Full email flow E2E tests', () => {
       username: users[1]!.username,
       password: users[1]!.password,
     });
-    expect(Array.isArray(emails)).toBe(true);
-    expect(emails.length).toBe(0);
+    expect(emails).toBe(false)
   });
 
   // Step 5: Send email with valid SMTP auth - expect success
@@ -71,13 +70,16 @@ describe('Full email flow E2E tests', () => {
 
   // Step 6: Retrieve email with valid IMAP - expect to get email
   it('retrieves inbox with the sent email', async () => {
-    const emails: Message[] = await fetchInbox({
+    console.debug("waiting for message to be delivered")
+    await sleep(4000);
+    const email = await fetchInbox({
       username: users[1]!.username,
       password: users[1]!.password,
     });
-    console.debug(emails);
-    expect(emails.some(email => email.parts[0]?.body.includes('Hello from user1'))).toBe(true);
-  });
+    // console.debug("retrieved email", email);
+    expect(email).toBeDefined();
+    expect(email.envelope?.subject?.includes('Hello from user1')).toBe(true);
+  }, 20000);
 
   // Step 7: Delete user1 - expect success
   it('deletes user1 successfully', async () => {
