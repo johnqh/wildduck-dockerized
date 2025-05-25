@@ -1,9 +1,7 @@
 #!/bin/bash
-
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 ROOT_DIR="$(dirname "$SCRIPT_DIR")"
-
-inject_db_name_into_mongo_uri() {
+inject_db_name_into_mongo_uri(){
     local uri="$1"
     local db_name="$2"
 
