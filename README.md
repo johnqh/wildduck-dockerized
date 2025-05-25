@@ -120,6 +120,6 @@ Configuration files for all services reside in `./config-generated`. Alter them 
 
 - rename `.env.example` to `.env` and fill in the required values
 
-- refer to the [Get access token](###get-access-token) to get ACCESS_TOKEN
+- refer to the [Get access token](#get-access-token) to get ACCESS_TOKEN
 
 - run `npm run test` or `bun test`
