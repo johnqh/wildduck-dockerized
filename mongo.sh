@@ -60,10 +60,10 @@ if ! $LOCAL_MONGO; then
         # --- Define list of configuration files to update ---
         declare -a CONFIG_FILES_TO_UPDATE
         # Using the paths exactly as you provided:
-        CONFIG_FILES_TO_UPDATE+=( "/config-generated/config-generated/wildduck/dbs.toml" )
-        CONFIG_FILES_TO_UPDATE+=( "/config-generated/config-generated/haraka/wildduck.yaml" )
-        CONFIG_FILES_TO_UPDATE+=( "/config-generated/config-generated/zone-mta/dbs-production.toml" )
-        CONFIG_FILES_TO_UPDATE+=( "/config-generated/config-generated/wildduck-webmail/default.toml" )
+        CONFIG_FILES_TO_UPDATE+=( "./config-generated/config-generated/wildduck/dbs.toml" )
+        CONFIG_FILES_TO_UPDATE+=( "./config-generated/config-generated/haraka/wildduck.yaml" )
+        CONFIG_FILES_TO_UPDATE+=( "./config-generated/config-generated/zone-mta/dbs-production.toml" )
+        CONFIG_FILES_TO_UPDATE+=( "./config-generated/config-generated/wildduck-webmail/default.toml" )
 
         # Common part of the old URI, regex escaped for sed's pattern matching
         # This matches "mongodb://mongo:27017/wildduck"
