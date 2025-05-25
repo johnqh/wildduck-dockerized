@@ -54,7 +54,7 @@ sed -i "s|HOSTNAME|$HOSTNAME|g" ./config-generated/docker-compose.yml
 
 
 
-./mongo.sh
+source "./setup-scripts/mongo.sh"
 
 # Certs for traefik
 USE_SELF_SIGNED_CERTS=false

@@ -60,14 +60,10 @@ Configuration files for all services reside in `./config-generated`. Alter them 
 - `cd wildduck-dockerized`
 - `./setup.sh` or `npm install && npm run deploy`
 - use local MongoDB instance or a hosted MongoDB instance
-
+  - enter `n` to yuse a hosted instance
   - if using hosted provide following info when asked
-    - MONGO_HOST
-    - MONGO_PORT
-    - MONGO_USER
-    - MONGO_PASS
-    - MONGO_DB
-
+    - MONGO_URLwith format `mongodb+srv://<username>:<password>@<host>`
+    - don't include collection/databse name
 - provide the domain name for the setup(further referred to as HOSTNAME)
 - when asked to install self-signed certs enter 'n' (ensure to select n as setup.sh automatically configures)
 - when asked for DNS settings enter 'y'
