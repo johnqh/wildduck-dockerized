@@ -1,5 +1,8 @@
 #!/bin/bash
 
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+ROOT_DIR="$(dirname "$SCRIPT_DIR")"
+
 inject_db_name_into_mongo_uri() {
     local uri="$1"
     local db_name="$2"
@@ -41,7 +44,7 @@ if ! $LOCAL_MONGO; then
     
     # Store the input URL directly, assuming it's clean and complete
     NEW_MONGO_URI_VALUE="${MONGO_URL}" 
-    DOCKER_COMPOSE_FILE="./config-generated/docker-compose.yml" # Define the path to your docker-compose file
+    DOCKER_COMPOSE_FILE="$ROOT_DIR/config-generated/docker-compose.yml" # Define the path to your docker-compose file
 
     # --- IMPORTANT FIX: Check if the docker-compose file exists ---
     if [ ! -f "${DOCKER_COMPOSE_FILE}" ]; then
@@ -94,10 +97,10 @@ if ! $LOCAL_MONGO; then
         # --- Define list of configuration files to update ---
         declare -a CONFIG_FILES_TO_UPDATE
         # Using the paths exactly as you provided:
-        CONFIG_FILES_TO_UPDATE+=( "./config-generated/config-generated/wildduck/dbs.toml" )
-        CONFIG_FILES_TO_UPDATE+=( "./config-generated/config-generated/haraka/wildduck.yaml" )
-        CONFIG_FILES_TO_UPDATE+=( "./config-generated/config-generated/zone-mta/dbs-production.toml" )
-        CONFIG_FILES_TO_UPDATE+=( "./config-generated/config-generated/wildduck-webmail/default.toml" )
+        CONFIG_FILES_TO_UPDATE+=( "$ROOT_DIR/config-generated/config-generated/wildduck/dbs.toml" )
+        CONFIG_FILES_TO_UPDATE+=( "$ROOT_DIR/config-generated/config-generated/haraka/wildduck.yaml" )
+        CONFIG_FILES_TO_UPDATE+=( "$ROOT_DIR/config-generated/config-generated/zone-mta/dbs-production.toml" )
+        CONFIG_FILES_TO_UPDATE+=( "$ROOT_DIR/config-generated/config-generated/wildduck-webmail/default.toml" )
         uri_wildduck=$(inject_db_name_into_mongo_uri "$NEW_MONGO_URI_VALUE" "wildduck")
         uri_webmail=$(inject_db_name_into_mongo_uri "$NEW_MONGO_URI_VALUE" "wildduck-webmail")
         echo # Adding a newline for better readability of output
@@ -137,6 +140,8 @@ if ! $LOCAL_MONGO; then
                         continue
                         ;;
                 esac
+
+                sed -i 's,'"$old_config_value"','"$new_config_line"',' "$config_file_path"
                 
         
                 if grep -qF -- "$NEW_MONGO_URI_VALUE" "$config_file_path"; then
