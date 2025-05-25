@@ -49,7 +49,7 @@ if ! $LOCAL_MONGO; then
     read -p "Provide MongoDB URL (mongodb://<db_user>:<db_password>@<db_host>/<db_name>: " MONGO_URL 
   
    
-    NEW_MONGO_URI_VALUE=$(MONGO_URL) # Call the function
+    NEW_MONGO_URI_VALUE=$MONGO_URL # Call the function
 
     if [ -z "${NEW_MONGO_URI_VALUE}" ]; then
         echo "Critical: Failed to generate MongoDB URI. Please check the details provided." >&2
