@@ -41,7 +41,7 @@ as with any other email server.
 
 Configuration files for all services reside in `./config-generated`. Alter them in whichever way you want, and restart the service in question.
 
-## Depolyment Instrucutions
+## Deployment Instructions
 
 ### Prerequisites
 
@@ -49,10 +49,10 @@ Configuration files for all services reside in `./config-generated`. Alter them 
 - ensure you have docker compose installed
 - ensure node is installed
 - ensure you have a domain name
-- esnure dns record is added to your domain for the VPS
+- ensure dns record is added to your domain for the VPS
 - you have certbot installed, required for ssl certificates
-- genearte ssl certificates for the domain, follow this tutorial [ssl certifacte instructions](https://certbot.eff.org/instructions?ws=webproduct&os=snap)
-- ensure webservers like nginx or plesk are not using the ports used by traefik(80, 443, 465, 993, 995)
+- generate ssl certificates for the domain, follow this tutorial [ssl certifacte instructions](https://certbot.eff.org/instructions?ws=webproduct&os=snap)
+- ensure web-servers like nginx or plesk are not using the ports used by traefik(80, 443, 465, 993, 995)
 
 ### Setup
 
@@ -60,10 +60,10 @@ Configuration files for all services reside in `./config-generated`. Alter them 
 - `cd wildduck-dockerized`
 - `./setup.sh` or `npm install && npm run deploy`
 - use local MongoDB instance or a hosted MongoDB instance
-  - enter `n` to yuse a hosted instance
+  - enter `n` to use a hosted instance
   - if using hosted provide following info when asked
-    - MONGO_URLwith format `mongodb+srv://<username>:<password>@<host>`
-    - don't include collection/databse name
+    - MONGO_URL with format `mongodb+srv://<username>:<password>@<host>`
+    - don't include collection/database name
 - provide the domain name for the setup(further referred to as HOSTNAME)
 - when asked to install self-signed certs enter 'n' (ensure to select n as setup.sh automatically configures)
 - when asked for DNS settings enter 'y'
@@ -84,22 +84,32 @@ Configuration files for all services reside in `./config-generated`. Alter them 
 
 ## Info
 
+### Get Access Token
+
 - The ACCESS_TOKEN used by the api will be present in the `./config-generated/wildduck/api.toml in the accessToken value
 - the token is used to authenticate the api calls add header `X-Access-Token: <accessToken>` [read this](https://docs.wildduck.email/docs/wildduck-api/wildduck-api)
+
+### API path
+
 - The wildduck api is available at `https://<domain_name>/api`
+- Refer to the [Wildduck API](https://docs.wildduck.email/docs/category/wildduck-api) for more information
 
 ### Update
 
 - the setup creates a new docker-compose.yml file in the config-generated directory and configs that the services will use
 - when changes are required update the configs in `./config-generated` and restart the corresponding service with the following command
 
-  ```
-  #list containers copy the name or container id
-  docker ps
+  ```bash
+  # move into the config-generated directory
+  cd config-generated
 
   #restart service
-  docker restart <service_name>
+  docker comspose restart
 
+
+  # or bring services down and then start them up
+  docker compose down
+  docker compose up -d
   ```
 
 # run tests
@@ -109,5 +119,7 @@ Configuration files for all services reside in `./config-generated`. Alter them 
 - run `npm install` or `bun install`
 
 - rename `.env.example` to `.env` and fill in the required values
+
+- refer to the [Get access token](###get-access-token) to get ACCESS_TOKEN
 
 - run `npm run test` or `bun test`
