@@ -99,6 +99,7 @@ if ! $LOCAL_MONGO; then
         # Using the paths exactly as you provided:
         CONFIG_FILES_TO_UPDATE+=( "$ROOT_DIR/config-generated/config-generated/wildduck/dbs.toml" )
         CONFIG_FILES_TO_UPDATE+=( "$ROOT_DIR/config-generated/config-generated/haraka/wildduck.yaml" )
+        CONFIG_FILES_TO_UPDATE+=( "$ROOT_DIR/config-generated/config-generated/zone-mta/dbs-development.toml" )
         CONFIG_FILES_TO_UPDATE+=( "$ROOT_DIR/config-generated/config-generated/zone-mta/dbs-production.toml" )
         CONFIG_FILES_TO_UPDATE+=( "$ROOT_DIR/config-generated/config-generated/wildduck-webmail/default.toml" )
         uri_wildduck=$(inject_db_name_into_mongo_uri "$NEW_MONGO_URI_VALUE" "wildduck")
@@ -123,8 +124,14 @@ if ! $LOCAL_MONGO; then
                         ;;
                     *"/haraka/wildduck.yaml")
                         # Match: two leading spaces + url: "mongodb://..."
-                        old_config_value=' url: "mongodb://mongo:27017/wildduck"'
+                        old_config_value='  url: "mongodb://mongo:27017/wildduck"'
                         new_config_line="  url: \"$escaped_uri_wildduck\""
+                        ;;
+                    *"/zone-mta/dbs-development.toml")
+                        mongo_uri=$(inject_db_name_into_mongo_uri "$NEW_MONGO_URI_VALUE" "wildduck")
+                        escaped_uri=$(printf '%s\n' "$mongo_uri" | sed 's/&/\\&/g')
+                        old_config_value='mongo = "mongodb://mongo:27017/zone-mta"'
+                        new_config_line="mongo = \"$escaped_uri\""
                         ;;
                     *"/zone-mta/dbs-production.toml")
                         old_config_value='mongo = "mongodb://mongo:27017/wildduck"'
