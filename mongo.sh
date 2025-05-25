@@ -50,8 +50,36 @@ if ! $LOCAL_MONGO; then
   
    
     NEW_MONGO_URI_VALUE=$MONGO_URL # Call the function
+    DOCKER_COMPOSE_FILE="./config-generated/docker-compose.yml" # Define the path to your docker-compose file
 
-    if [ -z "${NEW_MONGO_URI_VALUE}" ]; then
+    echo "Commenting out local MongoDB service from ${DOCKER_COMPOSE_FILE}..."
+    # This sed command comments out the 'mongo' service block.
+    # It finds the line '  mongo:', comments it, then loops for subsequent
+    # lines that are more indented (start with 4 spaces), commenting them too.
+    # The loop stops when a line is not more indented (e.g., the next service).
+    sed -i '' -e '
+    /^[[:space:]]\{2\}mongo:$/ {
+        s/^/#/;
+        :mongo_service_loop
+        n;
+        /^[[:space:]]\{4\}/ {
+            s/^/#/;
+            b mongo_service_loop;
+        }
+    }
+    ' "${DOCKER_COMPOSE_FILE}"
+
+    echo "Commenting out local MongoDB volume from ${DOCKER_COMPOSE_FILE}..."
+    # This sed command comments out the '  mongo:' entry under the 'volumes:' section.
+    # It operates on the range of lines from 'volumes:' until the next line that
+    # is not indented (which typically signifies the end of the volumes block or a new top-level key).
+    sed -i '' -e '
+    /^[[:space:]]*volumes:$/,/^[^[:space:]]/ {
+        /^[[:space:]]\{2\}mongo:$/s/^/#/;
+    }
+    ' "${DOCKER_COMPOSE_FILE}"
+
+    echo "MongoDB sections commented out from ${DOCKER_COMPOSE_FILE}."    if [ -z "${NEW_MONGO_URI_VALUE}" ]; then
         echo "Critical: Failed to generate MongoDB URI. Please check the details provided." >&2
         echo "Skipping update of configuration files due to URI generation failure."
     else
