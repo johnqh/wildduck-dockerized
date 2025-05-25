@@ -1,5 +1,7 @@
 #!/bin/bash
 
+
+
 args=("$@")
 
 SERVICES="Wildduck, Zone-MTA, Haraka, Wildduck Webmail"
@@ -49,6 +51,10 @@ echo "Copying Traefik config and replacing default configuration"
 cp -r ./dynamic_conf ./config-generated
 sed -i "s|\./config/|./config-generated/|g" ./config-generated/docker-compose.yml
 sed -i "s|HOSTNAME|$HOSTNAME|g" ./config-generated/docker-compose.yml
+
+
+
+./mongo.sh
 
 # Certs for traefik
 USE_SELF_SIGNED_CERTS=false

@@ -58,9 +58,18 @@ Configuration files for all services reside in `./config-generated`. Alter them 
 
 - clone the repo
 - `cd wildduck-dockerized`
-- `./setup.sh` or `npm install` and `npm run deploy`
+- `./setup.sh` or `npm install && npm run deploy`
+- use local MongoDB instance or a hosted MongoDB instance
+
+  - if using hosted provide following info when asked
+    - MONGO_HOST
+    - MONGO_PORT
+    - MONGO_USER
+    - MONGO_PASS
+    - MONGO_DB
+
 - provide the domain name for the setup(further referred to as HOSTNAME)
-- when asked to install self-signed certs enter 'n'
+- when asked to install self-signed certs enter 'n' (ensure to select n as setup.sh automatically configures)
 - when asked for DNS settings enter 'y'
 - let the setup complete
 - provide username and password for default admin account
@@ -71,22 +80,22 @@ Configuration files for all services reside in `./config-generated`. Alter them 
 - set DNS records for DKIM signing
   - open the file called `<HOSTNAME>-nameserver.txt` in `./config-generated/config-generated`
   - you will need to add 4 dns records in you DNS manger
-  - the 4 records are at very last section of the fiel called TL;DR
-  - the section is formatted follwoing way
+  - the 4 records are at very last section of the file called TL;DR
+  - the section is formatted following way
     ```
     <RECORD_NAME> IN <TYPE> <VALUE>
     ```
 
 ## Info
 
-- The ACCESS_TOKEN used by the api will be present in the `./config-generated/wildduck/api.toml in the sercet value
+- The ACCESS_TOKEN used by the api will be present in the `./config-generated/wildduck/api.toml in the accessToken value
 - the token is used to authenticate the api calls add header `X-Access-Token: <accessToken>` [read this](https://docs.wildduck.email/docs/wildduck-api/wildduck-api)
 - The wildduck api is available at `https://<domain_name>/api`
 
 ### Update
 
 - the setup creates a new docker-compose.yml file in the config-generated directory and configs that the services will use
-- when changes are required update the configs in `./config-generated` and restart the correcsponding service with the follwoping command
+- when changes are required update the configs in `./config-generated` and restart the corresponding service with the following command
 
   ```
   #list containers copy the name or container id
