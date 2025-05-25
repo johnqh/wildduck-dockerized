@@ -46,19 +46,10 @@ read -p "Do you wish to use a local MongoDB instance? (Y/n) " yn
 
 if ! $LOCAL_MONGO; then
     # Prompt for MongoDB details (as in your original script)
-    read -p "Provide MongoDB host: " MONGO_HOST
-    read -p "Provide MongoDB port: " MONGO_PORT
-    read -p "Provide MongoDB user (leave empty if none): " MONGO_USER
-    if [ -n "${MONGO_USER}" ]; then
-      read -sp "Provide MongoDB password (leave empty if none): " MONGO_PASS
-      echo # Add a newline after password input
-    else
-      MONGO_PASS="" # Ensure MONGO_PASS is empty if MONGO_USER is empty
-    fi
-    read -p "Provide MongoDB database: " MONGO_DB
-
-    echo "Generating MongoDB URI..."
-    NEW_MONGO_URI_VALUE=$(generate_mongo_uri) # Call the function
+    read -p "Provide MongoDB URL (mongodb://<db_user>:<db_password>@<db_host>/<db_name>: " MONGO_URL 
+  
+   
+    NEW_MONGO_URI_VALUE=$(MONGO_URL) # Call the function
 
     if [ -z "${NEW_MONGO_URI_VALUE}" ]; then
         echo "Critical: Failed to generate MongoDB URI. Please check the details provided." >&2
