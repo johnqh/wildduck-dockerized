@@ -86,7 +86,7 @@ Configuration files for all services reside in `./config-generated`. Alter them 
 
 ### Get Access Token
 
-- The ACCESS_TOKEN used by the api will be present in the `./config-generated/wildduck/api.toml in the accessToken value
+- The ACCESS_TOKEN used by the api will be present in the `./config-generated/config-generated/wildduck/api.toml in the accessToken value
 - the token is used to authenticate the api calls add header `X-Access-Token: <accessToken>` [read this](https://docs.wildduck.email/docs/wildduck-api/wildduck-api)
 
 ### API path
@@ -112,7 +112,7 @@ Configuration files for all services reside in `./config-generated`. Alter them 
   docker compose up -d
   ```
 
-# run tests
+# Run tests
 
 - ensure node is installed (optional bun)
 
