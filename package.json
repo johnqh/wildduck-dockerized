@@ -5,7 +5,7 @@
   "private": true,
   "scripts": {
     "test": "jest --forceExit",
-    "deploy": "./setup.sh",
+    "deploy": "sudo ./setup.sh",
     "update-certs": "./update_certs.sh"
   },
   "devDependencies": {

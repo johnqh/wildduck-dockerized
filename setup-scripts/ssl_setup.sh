@@ -7,6 +7,8 @@
 EMAIL="your_email@example.com" # IMPORTANT: Replace with your actual email for urgent renewal notices
 DOMAINS=""                     # IMPORTANT: Enter your domain(s) separated by commas (e.g., "example.com,www.example.com")
 
+HOSTNAME=$(HOSTNAME)
+
 # --- Functions ---
 
 # Function to check if a command exists
@@ -77,7 +79,7 @@ for i in "${ADDR[@]}"; do
   CERTBOT_DOMAINS+=" -d $i"
 done
 
-echo "Attempting to obtain SSL certificate for domain(s): $DOMAINS"
+echo "Attempting to obtain SSL certificate for domain(s): $HOSTNAME"
 echo "Using email: $EMAIL"
 
 # 3. Run Certbot in standalone mode

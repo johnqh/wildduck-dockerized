@@ -4,6 +4,9 @@
 
 args=("$@")
 
+source "./setup-scripts/ssl_setup.sh"
+
+
 SERVICES="Wildduck, Zone-MTA, Haraka, Wildduck Webmail"
 
 echo "Setting up $SERVICES"
