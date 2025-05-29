@@ -4,7 +4,7 @@
 
 args=("$@")
 
-source "./setup-scripts/ssl_setup.sh"
+
 
 
 SERVICES="Wildduck, Zone-MTA, Haraka, Wildduck Webmail"
@@ -45,6 +45,9 @@ if [ ! -e ./config-generated ]; then
     cp -r ./default-config ./config-generated/config-generated
 fi
 
+# SSL
+source "./setup-scripts/ssl_setup.sh"
+
 # Docker compose
 echo "Copying default docker-compose to ./config-generated"
 cp ./docker-compose.yml ./config-generated/docker-compose.yml
@@ -56,7 +59,7 @@ sed -i "s|\./config/|./config-generated/|g" ./config-generated/docker-compose.ym
 sed -i "s|HOSTNAME|$HOSTNAME|g" ./config-generated/docker-compose.yml
 
 
-
+# Mongo
 source "./setup-scripts/mongo.sh"
 
 # Certs for traefik
@@ -202,10 +205,10 @@ if ! $USE_SELF_SIGNED_CERTS; then
 
     CURRENT_DIR=$(basename "$(pwd)")
     if [ -f "docker-compose.yml" ] && [ "$CURRENT_DIR" = "config-generated" ]; then
-        docker compose up traefik -d 
+        sudo docker compose up traefik -d 
     else
         cd ./config-generated/ 
-        docker compose up traefik -d
+        sudo docker compose up traefik -d
         cd ../
     fi
 
@@ -216,14 +219,14 @@ if ! $USE_SELF_SIGNED_CERTS; then
     CERT_FILE="./config-generated/certs/$HOSTNAME.pem"
     KEY_FILE="./config-generated/certs/$HOSTNAME-key.pem"
 
-    CONTAINER_ID=$(docker ps --filter "name=traefik" --format "{{.ID}}")
-    docker cp $CONTAINER_ID:/data/acme.json ./acme.json
+    CONTAINER_ID=$(sudo docker ps --filter "name=traefik" --format "{{.ID}}")
+    sudo docker cp $CONTAINER_ID:/data/acme.json ./acme.json
 
     # Extract the certificate
-    CERT=$(jq -r --arg domain "$HOSTNAME" '.letsencrypt.Certificates[] | select(.domain.main == $domain) | .certificate' acme.json)
+    CERT=$(sudo jq -r --arg domain "$HOSTNAME" '.letsencrypt.Certificates[] | select(.domain.main == $domain) | .certificate' acme.json)
     
     # Extract the private key
-    KEY=$(jq -r --arg domain "$HOSTNAME" '.letsencrypt.Certificates[] | select(.domain.main == $domain) | .key' acme.json)
+    KEY=$(sudo jq -r --arg domain "$HOSTNAME" '.letsencrypt.Certificates[] | select(.domain.main == $domain) | .key' acme.json)
 
     # Decode and save certificate
     echo "$CERT" | base64 -d > "$CERT_FILE"
@@ -231,7 +234,7 @@ if ! $USE_SELF_SIGNED_CERTS; then
     # Decode and save private key
     echo "$KEY" | base64 -d > "$KEY_FILE"
 
-    docker stop $CONTAINER_ID
+    sudo docker stop $CONTAINER_ID
 
     # Create script to update certificates
     cat > update_certs.sh << 'EOF'
@@ -246,23 +249,23 @@ CERT_FILE="$SCRIPT_DIR/config-generated/certs/$HOSTNAME.pem"
 KEY_FILE="$SCRIPT_DIR/config-generated/certs/$HOSTNAME-key.pem"
 
 # Get container ID for Traefik
-CONTAINER_ID=$(docker ps --filter "name=traefik" --format "{{.ID}}")
+CONTAINER_ID=$(sudo docker ps --filter "name=traefik" --format "{{.ID}}")
 
 if [ -z "$CONTAINER_ID" ]; then
     echo "Traefik container not running. Starting it..."
     
     CURRENT_DIR=$(basename "$(pwd)")
     if [ -f "docker-compose.yml" ] && [ "$CURRENT_DIR" = "config-generated" ]; then
-        docker compose up traefik -d 
+        sudo docker compose up traefik -d 
     else
         cd ./config-generated/ 
-        docker compose up traefik -d
+        sudo docker compose up traefik -d
         cd "$SCRIPT_DIR"
     fi
     
     echo "Waiting for container to start..."
     sleep 2
-    CONTAINER_ID=$(docker ps --filter "name=traefik" --format "{{.ID}}")
+    CONTAINER_ID=$(sudo docker ps --filter "name=traefik" --format "{{.ID}}")
     
     if [ -z "$CONTAINER_ID" ]; then
         echo "Failed to start Traefik container. Exiting."
@@ -271,7 +274,7 @@ if [ -z "$CONTAINER_ID" ]; then
 fi
 
 # Copy the acme.json file from Traefik container
-docker cp $CONTAINER_ID:/data/acme.json $NEW_ACME_PATH
+sudo docker cp $CONTAINER_ID:/data/acme.json $NEW_ACME_PATH
 
 # Check if acme.json has changed
 if [ -f "$ACME_PATH" ] && diff -q "$ACME_PATH" "$NEW_ACME_PATH" >/dev/null; then
@@ -286,10 +289,10 @@ mv "$NEW_ACME_PATH" "$ACME_PATH"
 echo "Certificate changes detected. Updating certificate files..."
 
 # Extract the certificate
-CERT=$(jq -r --arg domain "$HOSTNAME" '.letsencrypt.Certificates[] | select(.domain.main == $domain) | .certificate' $ACME_PATH)
+CERT=$(sudo jq -r --arg domain "$HOSTNAME" '.letsencrypt.Certificates[] | select(.domain.main == $domain) | .certificate' $ACME_PATH)
 
 # Extract the private key
-KEY=$(jq -r --arg domain "$HOSTNAME" '.letsencrypt.Certificates[] | select(.domain.main == $domain) | .key' $ACME_PATH)
+KEY=$(sudo jq -r --arg domain "$HOSTNAME" '.letsencrypt.Certificates[] | select(.domain.main == $domain) | .key' $ACME_PATH)
 
 # Check if we actually got the certificate and key
 if [ -z "$CERT" ] || [ "$CERT" == "null" ]; then

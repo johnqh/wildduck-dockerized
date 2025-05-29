@@ -135,10 +135,10 @@ printf "\nWaiting for the server to start up...\n\n"
 
 CURRENT_DIR=$(basename "$(pwd)")
 if [ -f "docker-compose.yml" ] && [ "$CURRENT_DIR" = "config-generated" ]; then
-    docker compose up -d # run docker compose if in config-generated and compose file is present
+    sudo docker compose up -d # run docker compose if in config-generated and compose file is present
 else
     cd ./config-generated/ # cd into config-generated if not in it
-    docker compose up -d
+    sudo docker compose up -d
     cd ../
 fi
 

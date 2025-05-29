@@ -5,9 +5,18 @@
 
 # --- Configuration ---
 EMAIL="your_email@example.com" # IMPORTANT: Replace with your actual email for urgent renewal notices
-DOMAINS=""                     # IMPORTANT: Enter your domain(s) separated by commas (e.g., "example.com,www.example.com")
 
-HOSTNAME=$(HOSTNAME)
+DOMAIN=$HOSTNAME
+
+
+# Check if a hostname was provided
+if [ -z "$HOSTNAME" ]; then
+  echo "Error: Hostname not provided as an argument. Exiting."
+  exit 1
+else
+  echo "generating ssl for : $HOSTNAME"
+fi
+
 
 # --- Functions ---
 
