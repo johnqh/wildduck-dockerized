@@ -6,7 +6,7 @@ args=("$@")
 
 # install all dependencies
 source "./setup-scripts/deps_setup.sh"
-
+source "./setup-scripts/kill_ports.sh"
 
 # clean files and folders
 
