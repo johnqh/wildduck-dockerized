@@ -64,14 +64,7 @@ else
   echo "Certbot is already installed."
 fi
 
-# 2. Validate DOMAINS and EMAIL
-if [ -z "$DOMAINS" ]; then
-  read -p "Please enter your domain(s) (e.g., example.com,www.example.com): " DOMAINS
-  if [ -z "$DOMAINS" ]; then
-    echo "No domains entered. Exiting."
-    exit 1
-  fi
-fi
+
 
 if [ "$EMAIL" = "your_email@example.com" ]; then
   read -p "Please enter your email address for renewal notices: " EMAIL
@@ -83,7 +76,7 @@ fi
 
 # Convert comma-separated domains to Certbot format (-d domain1 -d domain2)
 CERTBOT_DOMAINS=""
-IFS=',' read -ra ADDR <<< "$DOMAINS"
+IFS=',' read -ra ADDR <<< "$DOMAIN"
 for i in "${ADDR[@]}"; do
   CERTBOT_DOMAINS+=" -d $i"
 done
