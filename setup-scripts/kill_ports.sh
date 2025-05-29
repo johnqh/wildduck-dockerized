@@ -63,7 +63,7 @@ clear_occupied_ports() {
           echo "  Error: Process $PID on port $port could not be killed. Manual intervention might be required."
         else
           echo "  Process $PID on port $port forcefully killed."
-        F    fi
+        fi
       else
         echo "  Process $PID on port $port terminated gracefully."
       fi
