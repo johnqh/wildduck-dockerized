@@ -33,7 +33,7 @@ services:
       # --- NEW LABELS FOR WILDDUCK API on /api PATH ---
       traefik.http.routers.wildduck-api-path.entrypoints: websecure # Expose over HTTPS
       # Rule: Match the host and require the /api path prefix
-      traefik.http.routers.wildduck-api-path.rule: Host(`mail.software-smith.in`) && PathPrefix(`/api`)
+      traefik.http.routers.wildduck-api-path.rule: Host(`HOSTNAME`) && PathPrefix(`/api`)
       traefik.http.routers.wildduck-api-path.tls.certresolver: letsencrypt # Get a Let's Encrypt cert
       # Apply the middleware to strip the /api prefix before forwarding to Wildduck
       traefik.http.routers.wildduck-api-path.middlewares: wildduck-api-stripprefix@docker
@@ -59,7 +59,7 @@ services:
     labels:
       traefik.enable: true
       traefik.http.routers.wildduck-webmail.entrypoints: websecure
-      traefik.http.routers.wildduck-webmail.rule: Host(`mail.software-smith.in`) && !PathPrefix(`/api`) # IMPORTANT: Exclude /api path
+      traefik.http.routers.wildduck-webmail.rule: Host(`HOSTNAME`) && !PathPrefix(`/api`) # IMPORTANT: Exclude /api path
       traefik.http.routers.wildduck-webmail.tls.certresolver: letsencrypt
       traefik.http.services.wildduck-webmail.loadbalancer.server.port: 3000
 
@@ -155,4 +155,3 @@ services:
       - traefik:/data
       - ./certs:/etc/traefik/certs # Mount your certs directory
       - ./dynamic_conf:/etc/traefik/dynamic_conf:ro
-
