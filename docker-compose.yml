@@ -58,6 +58,8 @@ services:
       - ./config/wildduck-webmail:/app/config
     labels:
       traefik.enable: true
+      traefik.http.routers.wildduck-webmail-web.entrypoints: web
+      traefik.http.routers.wildduck-webmail.rule: Host(`HOSTNAME`) && !PathPrefix(`/api`) # IMPORTANT: Exclude /api path
       traefik.http.routers.wildduck-webmail.entrypoints: websecure
       traefik.http.routers.wildduck-webmail.rule: Host(`HOSTNAME`) && !PathPrefix(`/api`) # IMPORTANT: Exclude /api path
       traefik.http.routers.wildduck-webmail.tls.certresolver: letsencrypt
