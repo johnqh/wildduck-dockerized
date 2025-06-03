@@ -65,7 +65,7 @@ cp ./docker-compose.yml ./config-generated/docker-compose.yml
 
 # stop exisiting wildduck-dockerized container
 
-sudo docekr stop $(sudo docker ps -q)
+sudo docker stop $(sudo docker ps -q)
 
 
 # Traefik
