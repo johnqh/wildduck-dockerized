@@ -63,6 +63,11 @@ source "./setup-scripts/ssl_setup.sh"
 echo "Copying default docker-compose to ./config-generated"
 cp ./docker-compose.yml ./config-generated/docker-compose.yml
 
+# stop exisiting wildduck-dockerized container
+
+sudo docekr stop $(sudo docker ps -q)
+
+
 # Traefik
 echo "Copying Traefik config and replacing default configuration"
 cp -r ./dynamic_conf ./config-generated
