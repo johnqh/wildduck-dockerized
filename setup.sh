@@ -75,12 +75,12 @@ source "./setup-scripts/mongo.sh"
 
 # Certs for traefik
 USE_SELF_SIGNED_CERTS=false
-read -p "Do you wish to set up self-signed certs for development? (Y/n) " yn
+read -p "Do you wish to set up self-signed certs for development? (y/N) " yn
 
     case $yn in
         [Yy]* ) USE_SELF_SIGNED_CERTS=true;;
         [Nn]* ) USE_SELF_SIGNED_CERTS=false;;
-        * ) USE_SELF_SIGNED_CERTS=true;;
+        * ) USE_SELF_SIGNED_CERTS=false;;
     esac
 
 if $USE_SELF_SIGNED_CERTS; then
