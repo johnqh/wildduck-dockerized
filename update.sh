@@ -5,9 +5,7 @@
 #
 
 echo "Stopping and cleaning existing wildduck-dockerized container"
-sudo docker compose -f ./config-generated/docker-compose.yml down
-
-sudo docker stop $(sudo docker ps -q)
+sudo docker stop $(sudo docker ps -q --filter "name=^/config-generated")
 
 
 echo "cleaning generated  files config-generated"

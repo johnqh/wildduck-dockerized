@@ -64,8 +64,7 @@ echo "Copying default docker-compose to ./config-generated"
 cp ./docker-compose.yml ./config-generated/docker-compose.yml
 
 # stop exisiting wildduck-dockerized container
-
-sudo docker stop $(sudo docker ps -q)
+sudo docker stop $(sudo docker ps -q --filter "name=^/config-generated")
 
 
 # Traefik
