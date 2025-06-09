@@ -130,46 +130,54 @@ install_docker() {
 install_nvm_node() {
   echo "--- Installing NVM and Node.js for user '$ORIGINAL_USER' ---"
 
-  # Check if NVM is already installed for the user
-  NVM_DIR="/home/$ORIGINAL_USER/.nvm"
-  if [ -d "$NVM_DIR" ]; then
+  # Get the correct HOME directory for the user
+  USER_HOME=$(eval echo "~$ORIGINAL_USER")
+  export NVM_DIR="$USER_HOME/.nvm"
+
+  # Ensure the directory exists
+  mkdir -p "$NVM_DIR"
+  chown -R "$ORIGINAL_USER":"$ORIGINAL_USER" "$NVM_DIR"
+
+  # Check if NVM is already installed
+  if [ -s "$NVM_DIR/nvm.sh" ]; then
     echo "NVM already installed for user '$ORIGINAL_USER'."
-    # Source NVM for the current script's user environment
-    export NVM_DIR="$NVM_DIR"
-    [ -s "$NVM_DIR/nvm.sh" ] && \. "$NVM_DIR/nvm.sh" # This loads nvm
   else
     echo "Installing NVM for user '$ORIGINAL_USER'..."
-    # Install NVM as the regular user
-    curl -o- https://raw.githubusercontent.com/nvm-sh/nvm/v0.39.7/install.sh | bash || { echo "Error: NVM installation failed."; exit 1; }
-    # Source NVM for the current script's user environment immediately after install
-    export NVM_DIR="$NVM_DIR"
-    [ -s "$NVM_DIR/nvm.sh" ] && \. "$NVM_DIR/nvm.sh" # This loads nvm
+    # Use sudo -u to run install script as the original user
+    sudo -u "$ORIGINAL_USER" bash -c "curl -o- https://raw.githubusercontent.com/nvm-sh/nvm/v0.39.7/install.sh | bash" \
+      || { echo "❌ Error: NVM installation failed."; exit 1; }
   fi
 
-  # Check if Node.js is already the desired version
-  if command_exists node && node -v | grep -q "^v$NODE_VERSION\."; then
-    echo "Node.js v$NODE_VERSION is already installed and active."
+  # Source NVM for the script
+  export NVM_DIR="$NVM_DIR"
+  [ -s "$NVM_DIR/nvm.sh" ] && \. "$NVM_DIR/nvm.sh"
+
+  # Ensure nvm command is available
+  if ! command -v nvm &>/dev/null; then
+    echo "❌ Error: nvm command not found after installation."
+    exit 1
+  fi
+
+  # Check and install Node.js version
+  if command -v node &>/dev/null && node -v | grep -q "^v$NODE_VERSION\."; then
+    echo "✅ Node.js v$NODE_VERSION is already installed and active."
   else
     echo "Installing Node.js version $NODE_VERSION..."
-    # Ensure nvm is loaded before trying to install node
-    if ! command_exists nvm; then
-        echo "Error: nvm command not found after installation/sourcing. Node.js installation skipped."
-        exit 1
-    fi
-    nvm install "$NODE_VERSION" || { echo "Error: Node.js installation failed."; exit 1; }
-    nvm use "$NODE_VERSION" || { echo "Error: Could not switch to Node.js version."; exit 1; }
-    nvm alias default "$NODE_VERSION" || { echo "Error: Could not set default Node.js version."; exit 1; }
-    echo "Node.js version: $(node -v)"
-    echo "NPM version: $(npm -v)"
+    nvm install "$NODE_VERSION" || { echo "❌ Error: Node.js installation failed."; exit 1; }
+    nvm use "$NODE_VERSION" || { echo "❌ Error: Could not switch to Node.js version."; exit 1; }
+    nvm alias default "$NODE_VERSION"
   fi
+
+  echo "✅ Node.js version: $(node -v)"
+  echo "✅ NPM version: $(npm -v)"
 
   # Install global npm packages if specified
   if [ -n "$NPM_PACKAGES" ]; then
-    echo "Installing global npm packages: $NPM_PACKAGES..."
-    npm install -g $NPM_PACKAGES || { echo "Error: Global npm package installation failed."; exit 1; }
+    echo "Installing global npm packages: $NPM_PACKAGES"
+    npm install -g $NPM_PACKAGES || { echo "❌ Error: Global npm package installation failed."; exit 1; }
   fi
 
-  echo "NVM and Node.js ($NODE_VERSION) installation complete for user '$ORIGINAL_USER'."
+  echo "🎉 NVM and Node.js ($NODE_VERSION) setup complete for '$ORIGINAL_USER'."
 }
 
 install_crontab() {
