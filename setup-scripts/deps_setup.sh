@@ -209,7 +209,7 @@ install_all_dependencies() {
   install_jq
   install_docker
   install_crontab
-  install_nvm_node
+  # install_nvm_node
   echo "--- All Dependencies Installed ---"
 }
 
