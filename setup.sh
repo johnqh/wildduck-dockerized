@@ -220,15 +220,19 @@ if ! $USE_SELF_SIGNED_CERTS; then
 
     CURRENT_DIR=$(basename "$(pwd)")
     if [ -f "docker-compose.yml" ] && [ "$CURRENT_DIR" = "config-generated" ]; then
-        sudo docker compose up traefik -d 
+        sudo docker compose up traefik wildduck -d 
+        cd ../
     else
         cd ./config-generated/ 
-        sudo docker compose up traefik -d
+        sudo docker compose up traefik wildduck -d
         cd ../
     fi
 
     echo "Waiting for Traefik to obtain certificate for $HOSTNAME..."
     # Poll the acme.json until the cert appears or timeout
+    echo "Waiting for container to start..."
+    sleep 2 # Just in case
+
     TIMEOUT=60
     INTERVAL=5
     ELAPSED=0
@@ -257,15 +261,11 @@ if ! $USE_SELF_SIGNED_CERTS; then
         echo "Error: Certificate for $HOSTNAME not found in acme.json after $TIMEOUT seconds."
         exit 1
     fi
-    echo "Waiting for container to start..."
-    sleep 2 # Just in case
     
     mkdir ./config-generated/certs/
     CERT_FILE="./config-generated/certs/$HOSTNAME.pem"
     KEY_FILE="./config-generated/certs/$HOSTNAME-key.pem"
 
-    CONTAINER_ID=$(sudo docker ps --filter "name=traefik" --format "{{.ID}}")
-    sudo docker cp $CONTAINER_ID:/data/acme.json ./acme.json
 
     # Extract the certificate
     CERT=$(sudo jq -r --arg domain "$HOSTNAME" '.letsencrypt.Certificates[] | select(.domain.main == $domain) | .certificate' acme.json)
@@ -279,7 +279,9 @@ if ! $USE_SELF_SIGNED_CERTS; then
     # Decode and save private key
     echo "$KEY" | base64 -d > "$KEY_FILE"
 
-    sudo docker stop $CONTAINER_ID
+    cd ./config-generated/ 
+    sudo docker compose down
+    cd ../
 
     # Create script to update certificates
     cat > update_certs.sh << 'EOF'

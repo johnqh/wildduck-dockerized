@@ -30,14 +30,13 @@ services:
       traefik.tcp.routers.wildduck-pop3s.tls: true
       traefik.tcp.routers.wildduck-pop3s.service: wildduck-pop3s
       traefik.tcp.services.wildduck-pop3s.loadbalancer.server.port: 110
-      # --- NEW LABELS FOR WILDDUCK API on /api PATH ---
       traefik.http.routers.wildduck-api-path.entrypoints: websecure # Expose over HTTPS
+
       # Rule: Match the host and require the /api path prefix
       traefik.http.routers.wildduck-api-path.rule: Host(`HOSTNAME`) && PathPrefix(`/api`)
+      # traefik.http.routers.wildduck-api-path.tls: true
       traefik.http.routers.wildduck-api-path.tls.certresolver: letsencrypt # Get a Let's Encrypt cert
-      # Apply the middleware to strip the /api prefix before forwarding to Wildduck
       traefik.http.routers.wildduck-api-path.middlewares: wildduck-api-stripprefix@docker
-      # Route to Wildduck's internal API port (8080)
       traefik.http.services.wildduck-api-path.loadbalancer.server.port: 8080
 
       # Middleware definition: This must be on the same level as the router/service definitions
@@ -62,6 +61,7 @@ services:
       traefik.http.routers.wildduck-webmail-web.rule: Host(`HOSTNAME`) && !PathPrefix(`/api`) # IMPORTANT: Exclude /api path
       traefik.http.routers.wildduck-webmail.entrypoints: websecure
       traefik.http.routers.wildduck-webmail.rule: Host(`HOSTNAME`) && !PathPrefix(`/api`) # IMPORTANT: Exclude /api path
+      traefik.http.routers.wildduck-webmail.tls: true
       traefik.http.routers.wildduck-webmail.tls.certresolver: letsencrypt
       traefik.http.services.wildduck-webmail.loadbalancer.server.port: 3000
 
