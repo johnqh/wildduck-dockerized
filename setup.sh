@@ -14,9 +14,9 @@ echo "cleaning files and folders removing config-gmerated and acme.json"
 read -p "Are you sure you want to continue? [Y/n] " yn
 
 case $yn in
-    [Yy]* ) sudo rm -rf ./config-generated && sudo rm -rf ./acme.json;;
+    [Yy]* ) sudo rm -rf ./config-generated && sudo rm -rf ./acme.json && sudo rm -rf update_certs.sh;;
     [Nn]* ) echo "No files and folders removed. Exiting..."; exit;;
-    * ) sudo rm -rf ./config-generated && sudo rm -rf ./acme.json;;
+    * ) sudo rm -rf ./config-generated && sudo rm -rf ./acme.json && sudo rm -rf update_certs.sh;;
 esac
 SERVICES="Wildduck, Zone-MTA, Haraka, Wildduck Webmail"
 
