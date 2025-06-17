@@ -227,6 +227,36 @@ if ! $USE_SELF_SIGNED_CERTS; then
         cd ../
     fi
 
+    echo "Waiting for Traefik to obtain certificate for $HOSTNAME..."
+    # Poll the acme.json until the cert appears or timeout
+    TIMEOUT=60
+    INTERVAL=5
+    ELAPSED=0
+    CERT_READY=false
+    
+
+    while [ $ELAPSED -lt $TIMEOUT ]; do
+      CONTAINER_ID=$(sudo docker ps --filter "name=traefik" --format "{{.ID}}")
+
+      # Copy acme.json from inside the container
+      sudo docker cp $CONTAINER_ID:/data/acme.json ./acme.json 2>/dev/null
+
+      # Check if the cert exists in acme.json
+      if jq -e --arg domain "$HOSTNAME" '.letsencrypt.Certificates[] | select(.domain.main == $domain)' ./acme.json >/dev/null; then
+          CERT_READY=true
+          echo "Certificate found for $HOSTNAME."
+          break
+      fi
+
+      echo "Waiting... ($ELAPSED/${TIMEOUT}s)"
+      sleep $INTERVAL
+      ELAPSED=$((ELAPSED + INTERVAL))
+    done
+
+    if [ "$CERT_READY" = false ]; then
+        echo "Error: Certificate for $HOSTNAME not found in acme.json after $TIMEOUT seconds."
+        exit 1
+    fi
     echo "Waiting for container to start..."
     sleep 2 # Just in case
     
