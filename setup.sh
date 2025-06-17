@@ -164,8 +164,8 @@ if ! $USE_SELF_SIGNED_CERTS; then
     # Delete the serversTransport.rootCAs line
     sed -i '/- "--serversTransport.rootCAs=\/etc\/traefik\/certs\/rootCA.pem"/d' ./config-generated/docker-compose.yml
 
-    # Delete the log.level=DEBUG line
-    sed -i '/- "--log.level=DEBUG"/d' ./config-generated/docker-compose.yml
+    # # Delete the log.level=DEBUG line
+    # sed -i '/- "--log.level=DEBUG"/d' ./config-generated/docker-compose.yml
 
     # Delete the certs line
     sed -i '/- \.\/certs:\/etc\/traefik\/certs.*# Mount your certs directory/d' ./config-generated/docker-compose.yml
