@@ -205,7 +205,7 @@ install_crontab() {
 
 install_all_dependencies() {
   echo "--- Starting Dependency Installation ---"
-  install_certbot
+  # install_certbot
   install_jq
   install_docker
   install_crontab

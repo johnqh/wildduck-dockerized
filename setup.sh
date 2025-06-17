@@ -57,7 +57,7 @@ if [ ! -e ./config-generated ]; then
 fi
 
 # SSL
-source "./setup-scripts/ssl_setup.sh"
+# source "./setup-scripts/ssl_setup.sh"
 
 # Docker compose
 echo "Copying default docker-compose to ./config-generated"
