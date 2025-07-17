@@ -43,7 +43,7 @@ services:
       # It creates a middleware named 'wildduck-api-stripprefix'
       traefik.http.middlewares.wildduck-api-stripprefix.stripprefix.prefixes: /api
   wildduck-webmail:
-    image: nodemailer/wildduck-webmail:latest
+    image: johnqh/wildduck-webmail:latest
     restart: unless-stopped
     command:
       - ""
