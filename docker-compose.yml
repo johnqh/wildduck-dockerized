@@ -5,7 +5,7 @@ volumes:
   traefik:
 services:
   wildduck:
-    image: ghcr.io/zone-eu/wildduck:1.45.5
+    image: johnqh/wildduck:latest
     restart: unless-stopped
     ports:
       - "127.0.0.1:8080:8080"
@@ -84,7 +84,7 @@ services:
       traefik.tcp.services.zonemta.loadbalancer.server.port: 587
 
   haraka:
-    image: ghcr.io/zone-eu/haraka-plugin-wildduck:5.8.22
+    image: johnqh/haraka-plugin-wildduck:latest
     restart: unless-stopped
     ports:
       - "25:25"
