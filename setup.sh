@@ -8,6 +8,11 @@ args=("$@")
 source "./setup-scripts/deps_setup.sh"
 source "./setup-scripts/kill_ports.sh"
 
+# config 
+
+CONFIG_DIR="config-generated"
+
+
 # clean files and folders
 
 echo "cleaning files and folders removing config-gmerated and acme.json"

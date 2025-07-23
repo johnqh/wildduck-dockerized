@@ -42,7 +42,7 @@ if ! $LOCAL_MONGO; then
     
     # Store the input URL directly, assuming it's clean and complete
     NEW_MONGO_URI_VALUE="${MONGO_URL}" 
-    DOCKER_COMPOSE_FILE="$ROOT_DIR/config-generated/docker-compose.yml" # Define the path to your docker-compose file
+    DOCKER_COMPOSE_FILE="$ROOT_DIR/${CONFIG_DIR}/docker-compose.yml" # Define the path to your docker-compose file
 
     # --- IMPORTANT FIX: Check if the docker-compose file exists ---
     if [ ! -f "${DOCKER_COMPOSE_FILE}" ]; then
@@ -95,11 +95,11 @@ if ! $LOCAL_MONGO; then
         # --- Define list of configuration files to update ---
         declare -a CONFIG_FILES_TO_UPDATE
         # Using the paths exactly as you provided:
-        CONFIG_FILES_TO_UPDATE+=( "$ROOT_DIR/config-generated/config-generated/wildduck/dbs.toml" )
-        CONFIG_FILES_TO_UPDATE+=( "$ROOT_DIR/config-generated/config-generated/haraka/wildduck.yaml" )
-        CONFIG_FILES_TO_UPDATE+=( "$ROOT_DIR/config-generated/config-generated/zone-mta/dbs-development.toml" )
-        CONFIG_FILES_TO_UPDATE+=( "$ROOT_DIR/config-generated/config-generated/zone-mta/dbs-production.toml" )
-        CONFIG_FILES_TO_UPDATE+=( "$ROOT_DIR/config-generated/config-generated/wildduck-webmail/default.toml" )
+        CONFIG_FILES_TO_UPDATE+=( "$ROOT_DIR/$CONFIG_DIR/config-generated/wildduck/dbs.toml" )
+        CONFIG_FILES_TO_UPDATE+=( "$ROOT_DIR/$CONFIG_DIR/config-generated/haraka/wildduck.yaml" )
+        CONFIG_FILES_TO_UPDATE+=( "$ROOT_DIR/$CONFIG_DIR/config-generated/zone-mta/dbs-development.toml" )
+        CONFIG_FILES_TO_UPDATE+=( "$ROOT_DIR/$CONFIG_DIR/config-generated/zone-mta/dbs-production.toml" )
+        CONFIG_FILES_TO_UPDATE+=( "$ROOT_DIR/$CONFIG_DIR/config-generated/wildduck-webmail/default.toml" )
         uri_wildduck=$(inject_db_name_into_mongo_uri "$NEW_MONGO_URI_VALUE" "wildduck")
         uri_webmail=$(inject_db_name_into_mongo_uri "$NEW_MONGO_URI_VALUE" "wildduck-webmail")
         echo # Adding a newline for better readability of output

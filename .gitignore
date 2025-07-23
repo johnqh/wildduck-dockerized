@@ -16,3 +16,7 @@ config-generated
 certs
 acme.json
 update_certs.sh
+
+# spliit deplyment
+backend-config
+frontend-config

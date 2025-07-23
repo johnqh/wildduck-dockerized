@@ -4,7 +4,7 @@ PUBLIC_IP=`curl -s https://api.ipify.org`
 
 cwd=$(pwd)
 
-CWD_CONFIG="$cwd/config-generated/config-generated"
+CWD_CONFIG="$cwd/$CONFIG_DIR/config-generated"
 
 NODE_PATH=`command -v node`
 DKIM_SELECTOR=`$NODE_PATH -e 'console.log(Date().toString().substr(4, 3).toLowerCase() + new Date().getFullYear())'`
@@ -134,10 +134,10 @@ cat "$CWD_CONFIG/$MAILDOMAIN-nameserver.txt"
 printf "\nWaiting for the server to start up...\n\n"
 
 CURRENT_DIR=$(basename "$(pwd)")
-if [ -f "docker-compose.yml" ] && [ "$CURRENT_DIR" = "config-generated" ]; then
+if [ -f "docker-compose.yml" ] && [ "$CURRENT_DIR" = "$CONFIG_DIR" ]; then
     sudo docker compose up -d # run docker compose if in config-generated and compose file is present
 else
-    cd ./config-generated/ # cd into config-generated if not in it
+    cd "./$CONFIG_DIR/" # cd into config-generated if not in it
     sudo docker compose up -d
     cd ../
 fi
