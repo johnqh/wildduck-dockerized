@@ -13,7 +13,7 @@ BASE_DOCKER_COMPOSE_SOURCE="./docker-compose.yml" # Assuming the base docker-com
 SETUP_SCRIPTS_DIR="./setup-scripts" # Directory for helper scripts like mongo.sh, dns_setup.sh
 
 # Global variables to store generated secrets for printing at the end
-GENERATED_API_TOKEN=""
+ACCESS_TOKEN=""
 GENERATED_API_URL=""
 
 # --- Functions ---
@@ -152,7 +152,7 @@ function apply_backend_configs {
     SRS_SECRET=$(head /dev/urandom | tr -dc A-Za-z0-9 | head -c30)
     ZONEMTA_SECRET=$(head /dev/urandom | tr -dc A-Za-z0-9 | head -c30)
     DKIM_SECRET=$(head /dev/urandom | tr -dc A-Za-z0-9 | head -c30)
-    GENERATED_API_TOKEN=$(head /dev/urandom | tr -dc A-Za-z0-9 | head -c30) # Store for printing
+    ACCESS_TOKEN=$(head /dev/urandom | tr -dc A-Za-z0-9 | head -c30) # Store for printing
     HMAC_SECRET=$(head /dev/urandom | tr -dc A-Za-z0-9 | head -c30)
 
     # Apply secrets
@@ -162,7 +162,7 @@ function apply_backend_configs {
 
     sed -i "s/#loopSecret=\"secret value\"/loopSecret=\"$SRS_SECRET\"/" "$CONFIG_DIR"/config-generated/wildduck/sender.toml || error_exit "Failed to update Wildduck sender.toml"
     sed -i "s/secret=\"super secret key\"/secret=\"$DKIM_SECRET\"/" "$CONFIG_DIR"/config-generated/wildduck/dkim.toml || error_exit "Failed to update Wildduck dkim.toml"
-    sed -i "s/accessToken=\"somesecretvalue\"/accessToken=\"$GENERATED_API_TOKEN\"/" "$CONFIG_DIR"/config-generated/wildduck/api.toml || error_exit "Failed to update Wildduck api.toml accessToken"
+    sed -i "s/accessToken=\"somesecretvalue\"/accessToken=\"$ACCESS_TOKEN\"/" "$CONFIG_DIR"/config-generated/wildduck/api.toml || error_exit "Failed to update Wildduck api.toml accessToken"
     sed -i "s/secret=\"a secret cat\"/secret=\"$HMAC_SECRET\"/" "$CONFIG_DIR"/config-generated/wildduck/api.toml || error_exit "Failed to update Wildduck api.toml secret"
     sed -i "s/\"domainadmin@example.com\"/\"domainadmin@$MAILDOMAIN\"/" "$CONFIG_DIR"/config-generated/wildduck/acme.toml || error_exit "Failed to update Wildduck acme.toml email"
     sed -i "s/\"https:\/\/wildduck.email\"/\"https:\/\/$MAILDOMAIN\"/" "$CONFIG_DIR"/config-generated/wildduck/acme.toml || error_exit "Failed to update Wildduck acme.toml URL"
@@ -445,6 +445,6 @@ echo "--- Generated Credentials for Frontend Configuration ---"
 GENERATED_API_URL="https://$HOSTNAME/api"
 
 echo "WildDuck API URL: $GENERATED_API_URL"
-echo "WildDuck API Token: $GENERATED_API_TOKEN"
+echo "WildDuck API Token: $ACCESS_TOKEN"
 echo "------------------------------------------------------"
 
