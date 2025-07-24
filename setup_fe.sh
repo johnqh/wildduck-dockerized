@@ -45,14 +45,14 @@ function get_hostname {
     echo "--- Frontend Setup Configuration ---"
     if [ "$#" -gt "0" ]; then
         HOSTNAME=${args[0]}
-        echo -e "Using HOSTNAME: $HOSTNAME"
+        echo -e "Using Frontend HOSTNAME: $HOSTNAME"
     else
         echo "Specify the HOSTNAME for your webmail (e.g., webmail.example.com): "
         read -r HOSTNAME
     fi
 
     if [ -z "$HOSTNAME" ]; then
-        error_exit "Hostname cannot be empty."
+        error_exit "Frontend Hostname cannot be empty."
     fi
 }
 
@@ -100,7 +100,6 @@ function apply_frontend_configs {
     # Remove rspamd service block
     sed -i '/^  rspamd:/,/^  mongo:/{//!d; /^  rspamd:/d}' "$FRONTEND_DOCKER_COMPOSE" || error_exit "Failed to remove rspamd service block"
     # Remove mongo service block (assuming it's before redis or at the end of services if redis is removed)
-    # This sed command assumes mongo is the last service or followed by redis or similar.
     # We remove from mongo: until redis: but ensure redis: itself is not deleted.
     sed -i '/^  mongo:/,/^  redis:/{//!d; /^  mongo:/d}' "$FRONTEND_DOCKER_COMPOSE" || error_exit "Failed to remove mongo service block"
 
@@ -113,6 +112,7 @@ function apply_frontend_configs {
     # Ensure wildduck-webmail does not depend on the backend wildduck service
     # The base docker-compose.yml has it commented, so if it somehow becomes uncommented
     sed -i 's|^\(      - wildduck\)|\#\1|' "$FRONTEND_DOCKER_COMPOSE" || true
+    # Commenting out mongo dependency as requested
     sed -i 's|^\(      - mongo\)|\#\1|' "$FRONTEND_DOCKER_COMPOSE" || true
 
     # Remove other TCP entrypoints and associated labels/services in Traefik not needed for frontend-only
@@ -141,6 +141,10 @@ function apply_frontend_configs {
     sed -i '/traefik.tcp.routers.zonemta.service/d' "$FRONTEND_DOCKER_COMPOSE" || true
     sed -i '/traefik.tcp.services.zonemta.loadbalancer.server.port/d' "$FRONTEND_DOCKER_COMPOSE" || true
 
+    # Remove wildduck-api-path router and middleware as it's backend related
+    sed -i '/traefik.http.routers.wildduck-api-path/d' "$FRONTEND_DOCKER_COMPOSE" || true
+    sed -i '/traefik.http.middlewares.wildduck-api-stripprefix/d' "$FRONTEND_DOCKER_COMPOSE" || true
+
     # Replace HOSTNAME placeholder in docker-compose.yml for frontend Traefik rules
     sed -i "s|HOSTNAME|$HOSTNAME|g" "$FRONTEND_DOCKER_COMPOSE" || error_exit "Failed to replace HOSTNAME in docker-compose.yml"
 
@@ -155,33 +159,36 @@ function apply_frontend_configs {
     fi
     sed -i "s|accessToken=\"\"|accessToken=\"$API_TOKEN\"|g" "$WEBMAIL_CONFIG_FILE" || error_exit "Failed to update API Token in webmail config"
 
-    # Prompt for API URL
-    echo "Enter the WildDuck API URL (e.g., https://mail.example.com/api): "
-    read -r API_URL
-    if [ -z "$API_URL" ]; then
-        error_exit "API URL cannot be empty."
+    # Prompt for Mail Server Hostname and construct API URL
+    echo "Enter the Mail Server Hostname (e.g., mail.example.com): "
+    read -r MAIL_SERVER_HOSTNAME
+    if [ -z "$MAIL_SERVER_HOSTNAME" ]; then
+        error_exit "Mail Server Hostname cannot be empty."
     fi
+    API_URL="https://$MAIL_SERVER_HOSTNAME/api"
     sed -i "s|url=\"http://wildduck:8080\"|url=\"$API_URL\"|g" "$WEBMAIL_CONFIG_FILE" || error_exit "Failed to update API URL in webmail config"
 
-    # Prompt for MongoDB URL
-    echo "Enter the MongoDB URL for WildDuck Webmail (e.g., mongodb://mongo:27017/wildduck-webmail): "
-    read -r MONGO_URL
-    if [ -z "$MONGO_URL" ]; then
-        error_exit "MongoDB URL cannot be empty."
-    fi
-    sed -i "s|mongo=\"mongodb://mongo:27017/wildduck-webmail\"|mongo=\"$MONGO_URL\"|g" "$WEBMAIL_CONFIG_FILE" || error_exit "Failed to update MongoDB URL in webmail config"
+    # MongoDB URL: Keep as is, as per request (no prompt, no modification)
+    echo "Using default MongoDB configuration for frontend: mongodb://mongo:27017/wildduck-webmail"
 
     # Update Redis DB config for frontend (using its own Redis instance) - default.toml already points to 'redis'
     echo "Using default Redis configuration for frontend: redis://redis:6379/5"
+    # Ensure the `depends_on` for redis is present for wildduck-webmail
+    if ! grep -q "wildduck-webmail.*depends_on:.*- redis" "$FRONTEND_DOCKER_COMPOSE"; then
+        sed -i "/wildduck-webmail:/!b;n;/depends_on:/a\      - redis" "$FRONTEND_DOCKER_COMPOSE" || error_exit "Failed to add redis dependency to webmail service"
+    fi
 
     # Update hostname related fields in webmail config (service and u2f appId)
-    MAILDOMAIN=$(echo "$HOSTNAME" | sed 's/^[^.]*\.//') # Extract domain from hostname
+    MAILDOMAIN=$(echo "$HOSTNAME" | sed 's/^[^.]*\.//') # Extract domain from frontend hostname
     if [ -z "$MAILDOMAIN" ]; then
         MAILDOMAIN=$HOSTNAME # Fallback if no subdomain
     fi
     sed -i "s|domain=\"example.com\"|domain=\"$MAILDOMAIN\"|" "$WEBMAIL_CONFIG_FILE" || error_exit "Failed to update domain in webmail config"
     sed -i "s|appId=\"https://example.com\"|appId=\"https://$HOSTNAME\"|" "$WEBMAIL_CONFIG_FILE" || error_exit "Failed to update u2f appId in webmail config"
     sed -i "s|hostname=\"example.com\"|hostname=\"$HOSTNAME\"|g" "$WEBMAIL_CONFIG_FILE" || error_exit "Failed to update hostname in setup section of webmail config"
+
+    # Update [setup] section with Mail Server Hostname
+    sed -i "s|hostname=\"test.com\"|hostname=\"$MAIL_SERVER_HOSTNAME\"|g" "$WEBMAIL_CONFIG_FILE" || error_exit "Failed to update setup hostnames in webmail config"
 
     echo "Frontend configurations applied."
 }
@@ -238,11 +245,16 @@ EOF
         sed -i 's/^\( *- "--certificatesresolvers.letsencrypt.acme.tlschallenge=true"\)/# \1/' "$FRONTEND_DOCKER_COMPOSE" || true
         
         # Uncomment certs and dynamic_conf volumes
+        # These lines are already present in the base docker-compose.yml under Traefik's volumes, but commented out.
         sed -i 's/^# \( *- .\/certs:\/etc\/traefik\/certs\)/\1/' "$FRONTEND_DOCKER_COMPOSE" || error_exit "Failed to uncomment certs volume"
         sed -i 's/^# \( *- .\/dynamic_conf:\/etc\/traefik\/dynamic_conf:ro\)/\1/' "$FRONTEND_DOCKER_COMPOSE" || error_exit "Failed to uncomment dynamic_conf volume"
 
         # Change webmail Traefik labels: use tls: true instead of certresolver
-        sed -i 's|traefik.http.routers.wildduck-webmail.tls.certresolver: letsencrypt|# traefik.http.routers.wildduck-webmail.tls: true|g' "$FRONTEND_DOCKER_COMPOSE" || error_exit "Failed to update webmail tls label"
+        # This line should be uncommented when using self-signed certs
+        sed -i 's|^# \( *traefik.http.routers.wildduck-webmail.tls: true\)|\1|g' "$FRONTEND_DOCKER_COMPOSE" || error_exit "Failed to uncomment webmail tls label"
+        # This line should be commented when using self-signed certs
+        sed -i 's|^\( *traefik.http.routers.wildduck-webmail.tls.certresolver: letsencrypt\)|\#\1|g' "$FRONTEND_DOCKER_COMPOSE" || error_exit "Failed to comment webmail certresolver label"
+
 
     else # Using Let's Encrypt
         echo "Configuring for Let's Encrypt for frontend..."
@@ -259,16 +271,21 @@ EOF
         sed -i 's/^\( *- "--serversTransport.rootCAs=\/etc\/traefik\/certs\/rootCA.pem"\)/# \1/' "$FRONTEND_DOCKER_COMPOSE" || true
 
         # Uncomment certificatesresolvers.letsencrypt lines (they are commented in base compose)
+        # Ensure correct indentation and replacement for ACME_EMAIL
         sed -i "s/^# \( *- \"--certificatesresolvers.letsencrypt.acme.email=ACME_EMAIL\"\)/      - \"--certificatesresolvers.letsencrypt.acme.email=webmaster@$MAILDOMAIN\"/" "$FRONTEND_DOCKER_COMPOSE" || error_exit "Failed to uncomment LE email"
         sed -i 's/^# \( *- "--certificatesresolvers.letsencrypt.acme.storage=.*\)/\1/' "$FRONTEND_DOCKER_COMPOSE" || error_exit "Failed to uncomment LE storage"
         sed -i 's/^# \( *- "--certificatesresolvers.letsencrypt.acme.tlschallenge=true"\)/\1/' "$FRONTEND_DOCKER_COMPOSE" || error_exit "Failed to uncomment LE tlschallenge"
 
         # Comment out certs and dynamic_conf volumes
+        # These lines are already present in the base docker-compose.yml under Traefik's volumes, but commented out.
         sed -i 's/^\( *- .\/certs:\/etc\/traefik\/certs\)/# \1/' "$FRONTEND_DOCKER_COMPOSE" || true
         sed -i 's/^\( *- .\/dynamic_conf:\/etc\/traefik\/dynamic_conf:ro\)/# \1/' "$FRONTEND_DOCKER_COMPOSE" || true
         
-        # Change webmail Traefik labels: use certresolver instead of tls: true
-        sed -i 's|traefik.http.routers.wildduck-webmail.tls: true|traefik.http.routers.wildduck-webmail.tls.certresolver: letsencrypt|g' "$FRONTEND_DOCKER_COMPOSE" || error_exit "Failed to update webmail tls label to certresolver"
+        # # Change webmail Traefik labels: use certresolver instead of tls: true
+        # # This line should be commented when using Let's Encrypt
+        # sed -i 's|^\( *traefik.http.routers.wildduck-webmail.tls: true\)|\#\1|g' "$FRONTEND_DOCKER_COMPOSE" || error_exit "Failed to comment webmail tls label"
+        # # This line should be uncommented when using Let's Encrypt
+        # sed -i 's|^# \( *traefik.http.routers.wildduck-webmail.tls.certresolver: letsencrypt\)|\1|g' "$FRONTEND_DOCKER_COMPOSE" || error_exit "Failed to uncomment webmail certresolver label"
     fi
 }
 
