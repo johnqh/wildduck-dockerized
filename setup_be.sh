@@ -125,6 +125,17 @@ function apply_backend_configs {
     # This ensures all requests to HOSTNAME go to the wildduck container.
     sed -i "s|traefik.http.routers.wildduck.rule=Host(\`$HOSTNAME\`)\ \&\&\ PathPrefix(\`/api\`)|traefik.http.routers.wildduck.rule=Host(\`$HOSTNAME\`)|g" "$CONFIG_DIR"/docker-compose.yml || error_exit "Failed to update WildDuck Traefik rule"
     # --- END OF MODIFICATION ---
+    
+    echo "Fixing wildduck-api-path rule: disabling PathPrefix(/api), enabling plain Host(\`$HOSTNAME\`) match..."
+
+
+# Comment the line with PathPrefix(`/api`)
+    sed -i "/traefik.http.routers.wildduck-api-path.rule: Host(\`$HOSTNAME\`) && PathPrefix(\`\/api\`)/s/^/      # /" "$CONFIG_DIR/docker-compose.yml"
+
+# Uncomment the simpler Host-only rule if it's commented
+    sed -i "s/^      # traefik.http.routers.wildduck-api-path.rule: Host(\`$HOSTNAME\`)/      traefik.http.routers.wildduck-api-path.rule: Host(\`$HOSTNAME\`)/" "$CONFIG_DIR/docker-compose.yml"
+
+
 
     # Adjust volume paths for copied configs to point to the nested config-generated directory
     sed -i "s|./config/wildduck|./config-generated/wildduck|g" "$CONFIG_DIR"/docker-compose.yml || error_exit "Failed to adjust wildduck volume path"
@@ -152,7 +163,7 @@ function apply_backend_configs {
     sed -i "s/hostname=\"email.example.com\"/hostname=\"$HOSTNAME\"/" "$CONFIG_DIR"/config-generated/wildduck/pop3.toml || error_exit "Failed to update Wildduck pop3.toml"
     sed -i "s/hostname=\"email.example.com\"/hostname=\"$HOSTNAME\"/" "$CONFIG_DIR"/config-generated/wildduck/default.toml || error_exit "Failed to update Wildduck default.toml hostname"
     sed -i "s/rpId=\"email.example.com\"/rpId=\"$HOSTNAME\"/" "$CONFIG_DIR"/config-generated/wildduck/default.toml || error_exit "Failed to update Wildduck default.toml rpId"
-    sed -i "s/emailDomain=\"example.com\"/emailDomain=\"$MAILDOMAIN\"/" "$CONFIG_DIR"/config-generated/wildduck/default.toml || error_exit "Failed to update Wildduck default.toml emailDomain"
+    sed -i "s/emailDomain=\"email.example.com\"/emailDomain=\"$MAILDOMAIN\"/" "$CONFIG_DIR"/config-generated/wildduck/default.toml || error_exit "Failed to update Wildduck default.toml emailDomain"
 
     # Generate secrets
     SRS_SECRET=$(head /dev/urandom | tr -dc A-Za-z0-9 | head -c30)
@@ -384,6 +395,8 @@ EOF
 args=("$@")
 
 clean_up
+
+source "./setup-scripts/deps_setup.sh"
 get_domain_and_hostname "${args[@]}"
 prepare_config_dirs
 apply_backend_configs

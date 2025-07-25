@@ -6,21 +6,39 @@ cwd=$(pwd)
 
 CWD_CONFIG="$cwd/$CONFIG_DIR/config-generated"
 
-NODE_PATH=`command -v node`
-DKIM_SELECTOR=`$NODE_PATH -e 'console.log(Date().toString().substr(4, 3).toLowerCase() + new Date().getFullYear())'`
+# Generate DKIM selector like: "jul2025"
+DKIM_SELECTOR="$(date '+%b' | tr '[:upper:]' '[:lower:]')$(date '+%Y')"
 
-openssl genrsa -out "$CWD_CONFIG/$MAILDOMAIN-dkim.pem" 1024
-chmod 400 "$CWD_CONFIG/$MAILDOMAIN-dkim.pem"
-openssl rsa -in "$CWD_CONFIG/$MAILDOMAIN-dkim.pem" -out "$CWD_CONFIG/$MAILDOMAIN-dkim.cert" -pubout
+# Paths
+DKIM_KEY_FILE="$CWD_CONFIG/$MAILDOMAIN-dkim.pem"
+DKIM_CERT_FILE="$CWD_CONFIG/$MAILDOMAIN-dkim.cert"
 
-DKIM_DNS="v=DKIM1;k=rsa;p=$(grep -v -e '^-' $CWD_CONFIG/$MAILDOMAIN-dkim.cert | tr -d "\n")"
+# Generate DKIM key
+openssl genrsa -out "$DKIM_KEY_FILE" 1024
+chmod 400 "$DKIM_KEY_FILE"
+openssl rsa -in "$DKIM_KEY_FILE" -out "$DKIM_CERT_FILE" -pubout
 
-DKIM_JSON=`DOMAIN="$MAILDOMAIN" SELECTOR="$DKIM_SELECTOR" CWD="$CWD_CONFIG" node -e 'console.log(JSON.stringify({
-  domain: process.env.DOMAIN,
-  selector: process.env.SELECTOR,
-  description: "Default DKIM key for "+process.env.DOMAIN,
-  privateKey: fs.readFileSync(process.env.CWD + "/" +process.env.DOMAIN+"-dkim.pem", "UTF-8")
-}))'`
+# Create DKIM DNS record
+DKIM_DNS="v=DKIM1;k=rsa;p=$(grep -v -e '^-' "$DKIM_CERT_FILE" | tr -d '\n')"
+
+# Read and escape private key for JSON
+if [ ! -f "$DKIM_KEY_FILE" ]; then
+    echo "Error: DKIM private key file not found at $DKIM_KEY_FILE"
+    exit 1
+fi
+
+DKIM_PRIVATE_KEY_ESCAPED=$(< "$DKIM_KEY_FILE" jq -Rs .)
+
+# Construct JSON
+DKIM_JSON=$(cat <<EOF
+{
+  "domain": "$MAILDOMAIN",
+  "selector": "$DKIM_SELECTOR",
+  "description": "Default DKIM key for $MAILDOMAIN",
+  "privateKey": $DKIM_PRIVATE_KEY_ESCAPED
+}
+EOF
+)
 
 echo "
 NAMESERVER SETUP

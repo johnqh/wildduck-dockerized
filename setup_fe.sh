@@ -183,13 +183,9 @@ function apply_frontend_configs {
     if [ -z "$MAILDOMAIN" ]; then
         MAILDOMAIN=$HOSTNAME # Fallback if no subdomain
     fi
-    sed -i "s|domain=\"example.com\"|domain=\"$MAILDOMAIN\"|" "$WEBMAIL_CONFIG_FILE" || error_exit "Failed to update domain in webmail config"
-    sed -i "s|appId=\"https://example.com\"|appId=\"https://$HOSTNAME\"|" "$WEBMAIL_CONFIG_FILE" || error_exit "Failed to update u2f appId in webmail config"
-    sed -i "s|hostname=\"example.com\"|hostname=\"$HOSTNAME\"|g" "$WEBMAIL_CONFIG_FILE" || error_exit "Failed to update hostname in setup section of webmail config"
+  
 
-    # Update [setup] section with Mail Server Hostname
-    sed -i "s|hostname=\"test.com\"|hostname=\"$MAIL_SERVER_HOSTNAME\"|g" "$WEBMAIL_CONFIG_FILE" || error_exit "Failed to update setup hostnames in webmail config"
-
+    sed -i "s|example\.com|$HOSTNAME|g" "$WEBMAIL_CONFIG_FILE" || error_exit "Failed to update domain in webmail config"
     echo "Frontend configurations applied."
 }
 

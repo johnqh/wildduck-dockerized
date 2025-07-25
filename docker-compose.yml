@@ -34,6 +34,8 @@ services:
 
       # Rule: Match the host and require the /api path prefix
       traefik.http.routers.wildduck-api-path.rule: Host(`HOSTNAME`) && PathPrefix(`/api`)
+      # traefik.http.routers.wildduck-api-path.rule: Host(`HOSTNAME`)
+
       # traefik.http.routers.wildduck-api-path.tls: true
       traefik.http.routers.wildduck-api-path.tls.certresolver: letsencrypt # Get a Let's Encrypt cert
       traefik.http.routers.wildduck-api-path.middlewares: wildduck-api-stripprefix@docker
