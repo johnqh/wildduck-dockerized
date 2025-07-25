@@ -134,7 +134,10 @@ function apply_backend_configs {
 
 # Uncomment the simpler Host-only rule if it's commented
     sed -i "s/^      # traefik.http.routers.wildduck-api-path.rule: Host(\`$HOSTNAME\`)/      traefik.http.routers.wildduck-api-path.rule: Host(\`$HOSTNAME\`)/" "$CONFIG_DIR/docker-compose.yml"
-
+  
+    # comment strippedPrefix rule
+    sed -i "/traefik.http.routers.wildduck-api-path.middlewares: wildduck-api-stripprefix@docker/s/^/      # /" "$CONFIG_DIR/docker-compose.yml"
+    sed -i "/traefik.http.middlewares.wildduck-api-stripprefix.stripprefix.prefixes: \/api/s/^/      # /" "$CONFIG_DIR/docker-compose.yml"
 
 
     # Adjust volume paths for copied configs to point to the nested config-generated directory

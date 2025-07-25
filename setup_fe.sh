@@ -146,7 +146,7 @@ function apply_frontend_configs {
     sed -i '/traefik.http.middlewares.wildduck-api-stripprefix/d' "$FRONTEND_DOCKER_COMPOSE" || true
 
     # Replace HOSTNAME placeholder in docker-compose.yml for frontend Traefik rules
-    sed -i "s|HOSTNAME|$HOSTNAME|g" "$FRONTEND_DOCKER_COMPOSE" || error_exit "Failed to replace HOSTNAME in docker-compose.yml"
+    sed -i "s|HOSTNAME|$MAIL_SERVER_HOSTNAME|g" "$FRONTEND_DOCKER_COMPOSE" || error_exit "Failed to replace HOSTNAME in docker-compose.yml"
 
 
     # --- Modify default.toml for WildDuck Webmail ---
@@ -165,7 +165,7 @@ function apply_frontend_configs {
     if [ -z "$MAIL_SERVER_HOSTNAME" ]; then
         error_exit "Mail Server Hostname cannot be empty."
     fi
-    API_URL="https://$MAIL_SERVER_HOSTNAME/api"
+    API_URL="https://$MAIL_SERVER_HOSTNAME"
     sed -i "s|url=\"http://wildduck:8080\"|url=\"$API_URL\"|g" "$WEBMAIL_CONFIG_FILE" || error_exit "Failed to update API URL in webmail config"
 
     # MongoDB URL: Keep as is, as per request (no prompt, no modification)
