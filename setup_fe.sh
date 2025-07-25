@@ -146,7 +146,7 @@ function apply_frontend_configs {
     sed -i '/traefik.http.middlewares.wildduck-api-stripprefix/d' "$FRONTEND_DOCKER_COMPOSE" || true
 
     # Replace HOSTNAME placeholder in docker-compose.yml for frontend Traefik rules
-    sed -i "s|HOSTNAME|$MAIL_SERVER_HOSTNAME|g" "$FRONTEND_DOCKER_COMPOSE" || error_exit "Failed to replace HOSTNAME in docker-compose.yml"
+    sed -i "s|HOSTNAME|$HOSTNAME|g" "$FRONTEND_DOCKER_COMPOSE" || error_exit "Failed to replace HOSTNAME in docker-compose.yml"
 
 
     # --- Modify default.toml for WildDuck Webmail ---
@@ -185,7 +185,7 @@ function apply_frontend_configs {
     fi
   
 
-    sed -i "s|example\.com|$HOSTNAME|g" "$WEBMAIL_CONFIG_FILE" || error_exit "Failed to update domain in webmail config"
+    sed -i "s|example\.com|$MAIL_SERVER_HOSTNAME|g" "$WEBMAIL_CONFIG_FILE" || error_exit "Failed to update domain in webmail config"
     echo "Frontend configurations applied."
 }
 
