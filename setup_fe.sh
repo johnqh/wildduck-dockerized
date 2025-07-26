@@ -291,6 +291,10 @@ EOF
 args=("$@")
 
 clean_up
+
+
+source "./setup-scripts/deps_setup.sh"
+
 get_hostname "${args[@]}"
 prepare_config_dirs
 apply_frontend_configs
