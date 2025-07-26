@@ -249,6 +249,7 @@ if ! $USE_SELF_SIGNED_CERTS; then
 
       # Copy acme.json from inside the container
       sudo docker cp $CONTAINER_ID:/data/acme.json ./acme.json 2>/dev/null
+      sudo chmod a+r ./acme.json
 
       # Check if the cert exists in acme.json
       if jq -e --arg domain "$HOSTNAME" '.letsencrypt.Certificates[] | select(.domain.main == $domain)' ./acme.json >/dev/null; then

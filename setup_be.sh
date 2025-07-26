@@ -277,7 +277,11 @@ EOF
             fi
 
             sudo docker cp "$CONTAINER_ID":/data/acme.json ./acme.json 2>/dev/null
-            if [ -f "./acme.json" ] && jq -e --arg domain "$HOSTNAME" '.letsencrypt.Certificates[] | select(.domain.main == $domain)' ./acme.json >/dev/null; then
+            sudo chmod a+r ./acme.json
+
+
+
+            if [ -f "./acme.json" ] && sudo jq -e --arg domain "$HOSTNAME" '.letsencrypt.Certificates[] | select(.domain.main == $domain)' ./acme.json >/dev/null; then
                 CERT_READY=true
                 echo "Certificate found for $HOSTNAME."
                 break
