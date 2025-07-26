@@ -238,7 +238,7 @@ if ! $USE_SELF_SIGNED_CERTS; then
     echo "Waiting for container to start..."
     sleep 2 # Just in case
 
-    TIMEOUT=60
+    TIMEOUT=120 #increased timeout for cert acquisition
     INTERVAL=5
     ELAPSED=0
     CERT_READY=false
