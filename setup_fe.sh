@@ -160,19 +160,25 @@ function apply_frontend_configs {
     sed -i "s|accessToken=\"\"|accessToken=\"$API_TOKEN\"|g" "$WEBMAIL_CONFIG_FILE" || error_exit "Failed to update API Token in webmail config"
 
     # Prompt for Mail Server Hostname and construct API URL
-    echo "Enter the Mail Server Hostname (e.g., mail.example.com): "
-    read -r MAIL_SERVER_HOSTNAME
-    if [ -z "$MAIL_SERVER_HOSTNAME" ]; then
+    echo "Enter the Domain of the Mail server (example.com): "
+    read -r MAIL_SERVER_DOMAIN
+    
+    echo "Perfect! The email Domain is: $MAIL_SERVER_DOMAIN. Do you wish to also specify the hostname? [y/N] "
+    read -r yn
+
+    case $yn in
+        [Yy]* ) echo "Hostname of themail sever: " && read -r MAIL_SERVER_HOSTNAME;;
+        [Nn]* ) echo "No hostname provided. Will use domain as hostname"; MAIL_SERVER_HOSTNAME=$MAIL_SERVER_DOMAIN;;
+        * ) echo "No hostname provided. Will use domain as hostname"; MAIL_SERVER_HOSTNAME=$MAIL_SERVER_DOMAIN;;
+    esac
+
+    echo ""
+    if [ -z "$MAIL_SERVER_DOMAIN" ]; then
         error_exit "Mail Server Hostname cannot be empty."
     fi
-    API_URL="https://$MAIL_SERVER_HOSTNAME"
+    API_URL="https://$MAIL_SERVER_DOMAIN"
     sed -i "s|url=\"http://wildduck:8080\"|url=\"$API_URL\"|g" "$WEBMAIL_CONFIG_FILE" || error_exit "Failed to update API URL in webmail config"
 
-    # MongoDB URL: Keep as is, as per request (no prompt, no modification)
-    echo "Using default MongoDB configuration for frontend: mongodb://mongo:27017/wildduck-webmail"
-
-    # Update Redis DB config for frontend (using its own Redis instance) - default.toml already points to 'redis'
-    echo "Using default Redis configuration for frontend: redis://redis:6379/5"
     # Ensure the `depends_on` for redis is present for wildduck-webmail
     if ! grep -q "wildduck-webmail.*depends_on:.*- redis" "$FRONTEND_DOCKER_COMPOSE"; then
         sed -i "/wildduck-webmail:/!b;n;/depends_on:/a\      - redis" "$FRONTEND_DOCKER_COMPOSE" || error_exit "Failed to add redis dependency to webmail service"
@@ -183,9 +189,20 @@ function apply_frontend_configs {
     if [ -z "$MAILDOMAIN" ]; then
         MAILDOMAIN=$HOSTNAME # Fallback if no subdomain
     fi
-  
+    
 
-    sed -i "s|example\.com|$MAIL_SERVER_HOSTNAME|g" "$WEBMAIL_CONFIG_FILE" || error_exit "Failed to update domain in webmail config"
+    sed -i "s|appId=\".*\"|appId=\"$API_URL\"|" "$WEBMAIL_CONFIG_FILE"
+
+
+    # Update [service] section
+    sed -i "s|domain=\".*\"|domain=\"$MAIL_SERVER_DOMAIN\"|" "$WEBMAIL_CONFIG_FILE"
+    # Update the domains array - this assumes it's on a single line and only contains "localhost"
+    sed -i "s|domains=\[\"example\.com\"\]|domains=[\"$MAIL_SERVER_DOMAIN\"]|" "$WEBMAIL_CONFIG_FILE"
+
+    # Update [setup] section hostnames
+    sed -i "s|hostname=\".*\"|hostname=\"$MAIL_SERVER_HOSTNAME\"|" "$WEBMAIL_CONFIG_FILE"
+
+    
     echo "Frontend configurations applied."
 }
 
@@ -268,9 +285,11 @@ EOF
 
         # Uncomment certificatesresolvers.letsencrypt lines (they are commented in base compose)
         # Ensure correct indentation and replacement for ACME_EMAIL
-        sed -i "s/^# \( *- \"--certificatesresolvers.letsencrypt.acme.email=ACME_EMAIL\"\)/      - \"--certificatesresolvers.letsencrypt.acme.email=webmaster@$MAILDOMAIN\"/" "$FRONTEND_DOCKER_COMPOSE" || error_exit "Failed to uncomment LE email"
-        sed -i 's/^# \( *- "--certificatesresolvers.letsencrypt.acme.storage=.*\)/\1/' "$FRONTEND_DOCKER_COMPOSE" || error_exit "Failed to uncomment LE storage"
-        sed -i 's/^# \( *- "--certificatesresolvers.letsencrypt.acme.tlschallenge=true"\)/\1/' "$FRONTEND_DOCKER_COMPOSE" || error_exit "Failed to uncomment LE tlschallenge"
+        
+        sed -i "s|# - \"--certificatesresolvers.letsencrypt.acme.email=ACME_EMAIL\"|- \"--certificatesresolvers.letsencrypt.acme.email=domainadmin@$MAILDOMAIN\"|g" "$FRONTEND_DOCKER_COMPOSE"
+        sed -i "s|# - \"--certificatesresolvers.letsencrypt.acme.storage=/data/acme.json\"|- \"--certificatesresolvers.letsencrypt.acme.storage=/data/acme.json\"|g" "$FRONTEND_DOCKER_COMPOSE"
+        sed -i "s|# - \"--certificatesresolvers.letsencrypt.acme.tlschallenge=true\"|- \"--certificatesresolvers.letsencrypt.acme.tlschallenge=true\"|g" "$FRONTEND_DOCKER_COMPOSE"
+
 
         # Comment out certs and dynamic_conf volumes
         # These lines are already present in the base docker-compose.yml under Traefik's volumes, but commented out.
@@ -280,7 +299,7 @@ EOF
         # # Change webmail Traefik labels: use certresolver instead of tls: true
         # # This line should be commented when using Let's Encrypt
         # sed -i 's|^\( *traefik.http.routers.wildduck-webmail.tls: true\)|\#\1|g' "$FRONTEND_DOCKER_COMPOSE" || error_exit "Failed to comment webmail tls label"
-        # # This line should be uncommented when using Let's Encrypt
+        # # # This line should be uncommented when using Let's Encrypt
         # sed -i 's|^# \( *traefik.http.routers.wildduck-webmail.tls.certresolver: letsencrypt\)|\1|g' "$FRONTEND_DOCKER_COMPOSE" || error_exit "Failed to uncomment webmail certresolver label"
     fi
 }
