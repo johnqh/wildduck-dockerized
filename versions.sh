@@ -74,10 +74,12 @@ function get_app_version {
             ;;
         "haraka")
             # Try multiple methods to get Haraka version
-            version_output=$(sudo docker exec $container_name /usr/local/bin/haraka -v 2>/dev/null | head -1 || \
+            version_output=$(sudo docker exec $container_name which haraka 2>/dev/null | xargs -I {} sudo docker exec $container_name {} -v 2>/dev/null | head -1 || \
+                           sudo docker exec $container_name find /usr -name "haraka" -type f -executable 2>/dev/null | head -1 | xargs -I {} sudo docker exec $container_name {} -v 2>/dev/null | head -1 || \
                            sudo docker exec $container_name node -e "try{console.log(require('/app/package.json').version)}catch(e){console.log('N/A')}" 2>/dev/null || \
                            sudo docker exec $container_name node -e "try{console.log(require('/usr/local/lib/node_modules/Haraka/package.json').version)}catch(e){console.log('N/A')}" 2>/dev/null || \
-                           echo "N/A")
+                           sudo docker exec $container_name node -e "try{console.log(require('haraka').version || 'N/A')}catch(e){console.log('N/A')}" 2>/dev/null || \
+                           echo "Container running but version unavailable")
             ;;
         "rspamd")
             version_output=$(sudo docker exec $container_name rspamd --version 2>/dev/null | head -1 || echo "N/A")
