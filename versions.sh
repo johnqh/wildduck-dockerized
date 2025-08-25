@@ -73,11 +73,12 @@ function get_app_version {
             version_output=$(sudo docker exec $container_name node -e "console.log(require('/app/package.json').version)" 2>/dev/null || echo "N/A")
             ;;
         "haraka")
-            # Haraka container uses node haraka.js - try to get version info
-            version_output=$(sudo docker exec $container_name ls -la / 2>/dev/null | grep -E "(package\.json|haraka)" | head -1 2>/dev/null || \
-                           sudo docker exec $container_name find /app -name "package.json" -o -name "haraka.js" 2>/dev/null | head -1 | xargs -I {} sudo docker exec $container_name cat {} 2>/dev/null | grep -E "version|name" | head -1 | cut -d'"' -f4 2>/dev/null || \
-                           sudo docker exec $container_name node -p "process.versions.node" 2>/dev/null | sed 's/^/Node /' || \
-                           echo "Running (version unknown)")
+            # Try simpler approaches to get Haraka version from container
+            version_output=$(sudo docker exec $container_name sh -c 'cd /app && ls -la' 2>/dev/null | grep -q package.json && sudo docker exec $container_name cat /app/package.json 2>/dev/null | grep '"version"' | cut -d'"' -f4 || \
+                           sudo docker exec $container_name sh -c 'cd / && ls -la' 2>/dev/null | grep -q package.json && sudo docker exec $container_name cat /package.json 2>/dev/null | grep '"version"' | cut -d'"' -f4 || \
+                           sudo docker exec $container_name npm list haraka 2>/dev/null | grep haraka | awk '{print $2}' | head -1 || \
+                           sudo docker exec $container_name node --version 2>/dev/null | sed 's/v/Node.js /' || \
+                           echo "Running")
             ;;
         "rspamd")
             version_output=$(sudo docker exec $container_name rspamd --version 2>/dev/null | head -1 || echo "N/A")
