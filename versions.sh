@@ -73,13 +73,11 @@ function get_app_version {
             version_output=$(sudo docker exec $container_name node -e "console.log(require('/app/package.json').version)" 2>/dev/null || echo "N/A")
             ;;
         "haraka")
-            # Haraka container runs with 'node haraka.js', get version from package.json
-            version_output=$(sudo docker exec $container_name node -e "try{console.log(require('haraka/package.json').version)}catch(e){console.log('N/A')}" 2>/dev/null || \
-                           sudo docker exec $container_name node -e "try{console.log(require('./package.json').version)}catch(e){console.log('N/A')}" 2>/dev/null || \
-                           sudo docker exec $container_name node -e "try{console.log(require('/app/package.json').version)}catch(e){console.log('N/A')}" 2>/dev/null || \
-                           sudo docker exec $container_name node -e "try{const pkg=require('./node_modules/Haraka/package.json'); console.log(pkg.version)}catch(e){console.log('N/A')}" 2>/dev/null || \
-                           sudo docker exec $container_name node -e "try{const pkg=require('haraka'); console.log(pkg.version || 'Module loaded')}catch(e){console.log('N/A')}" 2>/dev/null || \
-                           echo "Container running")
+            # Haraka container uses node haraka.js - try to get version info
+            version_output=$(sudo docker exec $container_name ls -la / 2>/dev/null | grep -E "(package\.json|haraka)" | head -1 2>/dev/null || \
+                           sudo docker exec $container_name find /app -name "package.json" -o -name "haraka.js" 2>/dev/null | head -1 | xargs -I {} sudo docker exec $container_name cat {} 2>/dev/null | grep -E "version|name" | head -1 | cut -d'"' -f4 2>/dev/null || \
+                           sudo docker exec $container_name node -p "process.versions.node" 2>/dev/null | sed 's/^/Node /' || \
+                           echo "Running (version unknown)")
             ;;
         "rspamd")
             version_output=$(sudo docker exec $container_name rspamd --version 2>/dev/null | head -1 || echo "N/A")
