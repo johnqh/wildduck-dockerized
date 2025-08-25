@@ -73,7 +73,11 @@ function get_app_version {
             version_output=$(sudo docker exec $container_name node -e "console.log(require('/app/package.json').version)" 2>/dev/null || echo "N/A")
             ;;
         "haraka")
-            version_output=$(sudo docker exec $container_name haraka -v 2>/dev/null | head -1 || echo "N/A")
+            # Try multiple methods to get Haraka version
+            version_output=$(sudo docker exec $container_name /usr/local/bin/haraka -v 2>/dev/null | head -1 || \
+                           sudo docker exec $container_name node -e "try{console.log(require('/app/package.json').version)}catch(e){console.log('N/A')}" 2>/dev/null || \
+                           sudo docker exec $container_name node -e "try{console.log(require('/usr/local/lib/node_modules/Haraka/package.json').version)}catch(e){console.log('N/A')}" 2>/dev/null || \
+                           echo "N/A")
             ;;
         "rspamd")
             version_output=$(sudo docker exec $container_name rspamd --version 2>/dev/null | head -1 || echo "N/A")
