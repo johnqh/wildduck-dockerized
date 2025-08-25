@@ -73,13 +73,13 @@ function get_app_version {
             version_output=$(sudo docker exec $container_name node -e "console.log(require('/app/package.json').version)" 2>/dev/null || echo "N/A")
             ;;
         "haraka")
-            # Try multiple methods to get Haraka version
-            version_output=$(sudo docker exec $container_name which haraka 2>/dev/null | xargs -I {} sudo docker exec $container_name {} -v 2>/dev/null | head -1 || \
-                           sudo docker exec $container_name find /usr -name "haraka" -type f -executable 2>/dev/null | head -1 | xargs -I {} sudo docker exec $container_name {} -v 2>/dev/null | head -1 || \
+            # Haraka container runs with 'node haraka.js', get version from package.json
+            version_output=$(sudo docker exec $container_name node -e "try{console.log(require('haraka/package.json').version)}catch(e){console.log('N/A')}" 2>/dev/null || \
+                           sudo docker exec $container_name node -e "try{console.log(require('./package.json').version)}catch(e){console.log('N/A')}" 2>/dev/null || \
                            sudo docker exec $container_name node -e "try{console.log(require('/app/package.json').version)}catch(e){console.log('N/A')}" 2>/dev/null || \
-                           sudo docker exec $container_name node -e "try{console.log(require('/usr/local/lib/node_modules/Haraka/package.json').version)}catch(e){console.log('N/A')}" 2>/dev/null || \
-                           sudo docker exec $container_name node -e "try{console.log(require('haraka').version || 'N/A')}catch(e){console.log('N/A')}" 2>/dev/null || \
-                           echo "Container running but version unavailable")
+                           sudo docker exec $container_name node -e "try{const pkg=require('./node_modules/Haraka/package.json'); console.log(pkg.version)}catch(e){console.log('N/A')}" 2>/dev/null || \
+                           sudo docker exec $container_name node -e "try{const pkg=require('haraka'); console.log(pkg.version || 'Module loaded')}catch(e){console.log('N/A')}" 2>/dev/null || \
+                           echo "Container running")
             ;;
         "rspamd")
             version_output=$(sudo docker exec $container_name rspamd --version 2>/dev/null | head -1 || echo "N/A")
