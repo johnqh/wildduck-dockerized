@@ -60,5 +60,5 @@ accountDescription = "WildDuck ({email})"
 #key="/path/to/server/key.pem"
 #cert="/path/to/server/cert.pem"
 
-[cors]
-origins = ["*"]
+# [cors]
+# origins = ["*"]
