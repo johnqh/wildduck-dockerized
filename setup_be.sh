@@ -80,6 +80,30 @@ function get_domain_and_hostname {
     if [ -z "$MAILDOMAIN" ] || [ -z "$HOSTNAME" ]; then
         error_exit "Mail domain or hostname cannot be empty."
     fi
+
+    # Prompt for INDEXER_BASE_URL
+    echo "Enter the INDEXER_BASE_URL for the WildDuck project: "
+    read INDEXER_BASE_URL
+    if [ -z "$INDEXER_BASE_URL" ]; then
+        echo "Warning: INDEXER_BASE_URL is empty. This may cause issues with the WildDuck indexer."
+    fi
+
+    # Export the variable for current session
+    export INDEXER_BASE_URL="$INDEXER_BASE_URL"
+
+    # Save to .env file for persistence
+    if [ ! -f .env ]; then
+        touch .env
+    fi
+
+    # Check if INDEXER_BASE_URL already exists in .env and update it, or add it
+    if grep -q "^INDEXER_BASE_URL=" .env; then
+        sed -i "s|^INDEXER_BASE_URL=.*|INDEXER_BASE_URL=$INDEXER_BASE_URL|" .env
+    else
+        echo "INDEXER_BASE_URL=$INDEXER_BASE_URL" >> .env
+    fi
+
+    echo "INDEXER_BASE_URL has been set to: $INDEXER_BASE_URL"
 }
 
 # Function to prepare backend configuration directories and copy docker-compose
