@@ -12,10 +12,20 @@ services:
       # - "143:143" # for local testing
       # - "110:110" # for local testing
     depends_on:
-      - mongo
-      - redis
+      mongo:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
     volumes:
       - ./config/wildduck:/wildduck/config
+    environment:
+      - NODE_ENV=production
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8080/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 60s
     labels:
       traefik.enable: true
       traefik.tcp.routers.wildduck-imaps.entrypoints: imaps
@@ -114,12 +124,24 @@ services:
     restart: unless-stopped
     volumes:
       - mongo:/data/db
+    healthcheck:
+      test: ["CMD", "mongosh", "--eval", "db.adminCommand('ping')"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 30s
 
   redis:
     image: redis:alpine
     restart: unless-stopped
     volumes:
       - redis:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 10s
 
   traefik:
     image: traefik:3.3.4
