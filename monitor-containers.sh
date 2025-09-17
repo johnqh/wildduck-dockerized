@@ -85,12 +85,63 @@ test_database_connectivity() {
     echo ""
     
     if [ -f "./debug-db-connection.js" ]; then
-        echo "Running database connection test..."
-        docker-compose exec wildduck node debug-db-connection.js 2>/dev/null || {
-            echo "❌ Failed to run database test inside container"
-            echo "Trying to test from host..."
-            node debug-db-connection.js 2>/dev/null || echo "❌ Database test failed from host as well"
-        }
+        echo "Copying debug script to container..."
+        if docker-compose cp debug-db-connection.js wildduck:/tmp/debug-db-connection.js 2>/dev/null; then
+            echo "Running database connection test inside container..."
+            docker-compose exec -T wildduck node /tmp/debug-db-connection.js 2>/dev/null || {
+                echo "❌ Database test failed inside container"
+                echo ""
+                echo "🔍 Basic connectivity checks:"
+                echo "MongoDB ping:"
+                if docker-compose exec -T mongo mongosh --eval "db.adminCommand('ping')" >/dev/null 2>&1; then
+                    echo "  ✅ MongoDB is responding"
+                else
+                    echo "  ❌ MongoDB is not responding"
+                fi
+                
+                echo "Redis ping:"
+                if docker-compose exec -T redis redis-cli ping >/dev/null 2>&1; then
+                    echo "  ✅ Redis is responding"
+                else
+                    echo "  ❌ Redis is not responding"
+                fi
+                
+                echo "Network connectivity from WildDuck:"
+                if docker-compose exec -T wildduck ping -c 1 mongo >/dev/null 2>&1; then
+                    echo "  ✅ Can reach mongo"
+                else
+                    echo "  ❌ Cannot reach mongo"
+                fi
+                
+                if docker-compose exec -T wildduck ping -c 1 redis >/dev/null 2>&1; then
+                    echo "  ✅ Can reach redis"
+                else
+                    echo "  ❌ Cannot reach redis"
+                fi
+            }
+        else
+            echo "❌ Failed to copy debug script to container"
+            echo "Falling back to basic connectivity tests..."
+            
+            echo ""
+            echo "🔍 Basic connectivity checks:"
+            echo "Container status:"
+            docker-compose ps 2>/dev/null || echo "  ❌ Docker Compose not available"
+            
+            echo "MongoDB connectivity:"
+            if docker-compose exec -T mongo mongosh --eval "db.adminCommand('ping')" >/dev/null 2>&1; then
+                echo "  ✅ MongoDB is responding"
+            else
+                echo "  ❌ MongoDB is not responding"
+            fi
+            
+            echo "Redis connectivity:"
+            if docker-compose exec -T redis redis-cli ping >/dev/null 2>&1; then
+                echo "  ✅ Redis is responding"
+            else
+                echo "  ❌ Redis is not responding"
+            fi
+        fi
     else
         echo "❌ debug-db-connection.js not found"
     fi
