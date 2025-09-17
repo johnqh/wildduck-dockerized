@@ -104,6 +104,41 @@ function get_domain_and_hostname {
     fi
 
     echo "INDEXER_BASE_URL has been set to: $INDEXER_BASE_URL"
+
+    # CORS Configuration
+    echo ""
+    echo "--- CORS Configuration ---"
+    echo "CORS (Cross-Origin Resource Sharing) allows web browsers to access your WildDuck API from different domains."
+    echo "This is typically needed if you have a web frontend that will access the API."
+    echo ""
+    echo "Do you want to enable CORS for the WildDuck API? [Y/n] "
+    read ENABLE_CORS
+
+    CORS_ORIGINS=""
+    case $ENABLE_CORS in
+        [Nn]* ) 
+            echo "CORS will be disabled."
+            CORS_ENABLED=false
+            ;;
+        * ) 
+            echo "CORS will be enabled."
+            CORS_ENABLED=true
+            echo ""
+            echo "You can specify which domains are allowed to access the API."
+            echo "Examples:"
+            echo "  - Use '*' to allow all domains (least secure, good for development)"
+            echo "  - Use 'http://localhost:3000' for local development"
+            echo "  - Use 'https://yourdomain.com' for production"
+            echo ""
+            echo "Enter allowed origins (comma-separated, or '*' for all): "
+            read CORS_ORIGINS
+            
+            if [ -z "$CORS_ORIGINS" ]; then
+                CORS_ORIGINS="*"
+                echo "No origins specified, defaulting to '*' (all domains)"
+            fi
+            ;;
+    esac
 }
 
 # Function to prepare backend configuration directories and copy docker-compose
@@ -208,6 +243,29 @@ function apply_backend_configs {
     sed -i "s/secret=\"super secret key\"/secret=\"$DKIM_SECRET\"/" "$CONFIG_DIR"/config-generated/wildduck/dkim.toml || error_exit "Failed to update Wildduck dkim.toml"
     sed -i "s/accessToken=\"somesecretvalue\"/accessToken=\"$ACCESS_TOKEN\"/" "$CONFIG_DIR"/config-generated/wildduck/api.toml || error_exit "Failed to update Wildduck api.toml accessToken"
     sed -i "s/secret=\"a secret cat\"/secret=\"$HMAC_SECRET\"/" "$CONFIG_DIR"/config-generated/wildduck/api.toml || error_exit "Failed to update Wildduck api.toml secret"
+
+    # Apply CORS configuration
+    echo "Applying CORS configuration to WildDuck API..."
+    if [ "$CORS_ENABLED" = true ]; then
+        # Enable CORS with specified origins
+        # Convert comma-separated origins to TOML array format
+        TOML_ORIGINS=$(echo "$CORS_ORIGINS" | sed 's/,/", "/g' | sed 's/^/["/' | sed 's/$/"]/')
+        
+        # Remove any existing CORS section and add new one
+        sed -i '/^\[cors\]/,/^$/d' "$CONFIG_DIR"/config-generated/wildduck/api.toml
+        sed -i '/^# \[cors\]/,/^$/d' "$CONFIG_DIR"/config-generated/wildduck/api.toml
+        
+        # Add CORS section at the end
+        echo "" >> "$CONFIG_DIR"/config-generated/wildduck/api.toml
+        echo "[cors]" >> "$CONFIG_DIR"/config-generated/wildduck/api.toml
+        echo "origins = $TOML_ORIGINS" >> "$CONFIG_DIR"/config-generated/wildduck/api.toml
+        
+        echo "CORS enabled with origins: $CORS_ORIGINS"
+    else
+        # Ensure CORS section is commented out or removed
+        sed -i '/^\[cors\]/,/^$/d' "$CONFIG_DIR"/config-generated/wildduck/api.toml
+        echo "CORS disabled"
+    fi
     sed -i "s/\"domainadmin@example.com\"/\"domainadmin@$MAILDOMAIN\"/" "$CONFIG_DIR"/config-generated/wildduck/acme.toml || error_exit "Failed to update Wildduck acme.toml email"
     sed -i "s/\"https:\/\/wildduck.email\"/\"https:\/\/$MAILDOMAIN\"/" "$CONFIG_DIR"/config-generated/wildduck/acme.toml || error_exit "Failed to update Wildduck acme.toml URL"
 

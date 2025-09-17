@@ -78,6 +78,39 @@ fi
 
 echo "INDEXER_BASE_URL has been set to: $INDEXER_BASE_URL"
 
+# CORS Configuration
+echo ""
+echo "--- CORS Configuration ---"
+echo "CORS (Cross-Origin Resource Sharing) allows web browsers to access your WildDuck API from different domains."
+echo "This is typically needed if you have a web frontend that will access the API."
+echo ""
+read -p "Do you want to enable CORS for the WildDuck API? [Y/n] " ENABLE_CORS
+
+CORS_ORIGINS=""
+case $ENABLE_CORS in
+    [Nn]* ) 
+        echo "CORS will be disabled."
+        CORS_ENABLED=false
+        ;;
+    * ) 
+        echo "CORS will be enabled."
+        CORS_ENABLED=true
+        echo ""
+        echo "You can specify which domains are allowed to access the API."
+        echo "Examples:"
+        echo "  - Use '*' to allow all domains (least secure, good for development)"
+        echo "  - Use 'http://localhost:3000' for local development"
+        echo "  - Use 'https://yourdomain.com' for production"
+        echo ""
+        read -p "Enter allowed origins (comma-separated, or '*' for all): " CORS_ORIGINS
+        
+        if [ -z "$CORS_ORIGINS" ]; then
+            CORS_ORIGINS="*"
+            echo "No origins specified, defaulting to '*' (all domains)"
+        fi
+        ;;
+esac
+
 if [ ! -e ./config-generated ]; then 
     echo "Copying default configuration into ./config-generated/config-generated"
     mkdir config-generated
@@ -231,6 +264,29 @@ sed -i "s/#loopSecret=\"secret value\"/loopSecret=\"$SRS_SECRET\"/" ./config-gen
 sed -i "s/secret=\"super secret key\"/secret=\"$DKIM_SECRET\"/" ./config-generated/config-generated/wildduck/dkim.toml
 sed -i "s/accessToken=\"somesecretvalue\"/accessToken=\"$ACCESS_TOKEN\"/" ./config-generated/config-generated/wildduck/api.toml
 sed -i "s/secret=\"a secret cat\"/secret=\"$HMAC_SECRET\"/" ./config-generated/config-generated/wildduck/api.toml
+
+# Apply CORS configuration
+echo "Applying CORS configuration to WildDuck API..."
+if [ "$CORS_ENABLED" = true ]; then
+    # Enable CORS with specified origins
+    # Convert comma-separated origins to TOML array format
+    TOML_ORIGINS=$(echo "$CORS_ORIGINS" | sed 's/,/", "/g' | sed 's/^/["/' | sed 's/$/"]/')
+    
+    # Remove any existing CORS section and add new one
+    sed -i '/^\[cors\]/,/^$/d' ./config-generated/config-generated/wildduck/api.toml
+    sed -i '/^# \[cors\]/,/^$/d' ./config-generated/config-generated/wildduck/api.toml
+    
+    # Add CORS section at the end
+    echo "" >> ./config-generated/config-generated/wildduck/api.toml
+    echo "[cors]" >> ./config-generated/config-generated/wildduck/api.toml
+    echo "origins = $TOML_ORIGINS" >> ./config-generated/config-generated/wildduck/api.toml
+    
+    echo "CORS enabled with origins: $CORS_ORIGINS"
+else
+    # Ensure CORS section is commented out or removed
+    sed -i '/^\[cors\]/,/^$/d' ./config-generated/config-generated/wildduck/api.toml
+    echo "CORS disabled"
+fi
 sed -i "s/\"domainadmin@example.com\"/\"domainadmin@$MAILDOMAIN\"/" ./config-generated/config-generated/wildduck/acme.toml
 sed -i "s/\"https:\/\/wildduck.email\"/\"https:\/\/$MAILDOMAIN\"/" ./config-generated/config-generated/wildduck/acme.toml
 

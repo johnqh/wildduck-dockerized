@@ -40,14 +40,58 @@ print_success "Backup created"
 
 # Step 2: Fix CORS configuration
 print_info "Step 2: Fixing CORS configuration in api.toml..."
-sed -i 's/# \[cors\]/[cors]/' backend-config/config-generated/wildduck/api.toml
-sed -i 's/# origins = \["\*"\]/origins = ["*"]/' backend-config/config-generated/wildduck/api.toml
+
+# Ask user for CORS origins
+echo ""
+echo "CORS Configuration Options:"
+echo "1. Allow all origins (*) - Good for development, less secure"
+echo "2. Specify custom origins - More secure for production"
+echo ""
+read -p "Choose option (1/2) [default: 1]: " CORS_OPTION
+
+CORS_ORIGINS="*"
+if [ "$CORS_OPTION" = "2" ]; then
+    echo ""
+    echo "Enter allowed origins (comma-separated):"
+    echo "Examples:"
+    echo "  http://localhost:3000"
+    echo "  https://yourdomain.com,https://app.yourdomain.com"
+    echo ""
+    read -p "Origins: " USER_ORIGINS
+    
+    if [ -n "$USER_ORIGINS" ]; then
+        CORS_ORIGINS="$USER_ORIGINS"
+    else
+        print_warning "No origins specified, defaulting to '*' (all origins)"
+    fi
+fi
+
+# Convert origins to TOML array format
+TOML_ORIGINS=$(echo "$CORS_ORIGINS" | sed 's/,/", "/g' | sed 's/^/["/' | sed 's/$/"]/')
+
+# Remove any existing CORS sections (commented or uncommented)
+sed -i '/^\[cors\]/,/^$/d' backend-config/config-generated/wildduck/api.toml
+sed -i '/^# \[cors\]/,/^$/d' backend-config/config-generated/wildduck/api.toml
+
+# Add proper CORS section at the end
+echo "" >> backend-config/config-generated/wildduck/api.toml
+echo "[cors]" >> backend-config/config-generated/wildduck/api.toml
+echo "origins = $TOML_ORIGINS" >> backend-config/config-generated/wildduck/api.toml
 
 # Verify CORS fix
 if grep -q "^origins = \[" backend-config/config-generated/wildduck/api.toml; then
-    print_success "CORS configuration updated"
+    print_success "CORS configuration updated with origins: $CORS_ORIGINS"
 else
     print_warning "CORS configuration might not be properly updated"
+fi
+
+# Step 2b: Fix host binding for Docker environment
+print_info "Step 2b: Fixing host binding for Docker deployment..."
+if grep -q 'host = "127.0.0.1"' backend-config/config-generated/wildduck/api.toml; then
+    sed -i 's/host = "127.0.0.1"/host = "0.0.0.0"/' backend-config/config-generated/wildduck/api.toml
+    print_success "Host binding updated from 127.0.0.1 to 0.0.0.0"
+else
+    print_info "Host binding already set correctly"
 fi
 
 # Step 3: Update docker-compose.yml to run API server
@@ -122,21 +166,36 @@ fi
 
 # Step 8: Test CORS with curl
 print_info "Step 8: Testing CORS headers..."
-CORS_TEST=$(curl -s -H "Origin: http://localhost:5173" -H "Access-Control-Request-Method: POST" -X OPTIONS http://127.0.0.1:8080/authenticate -I | grep -i "access-control" || echo "")
+
+# Use first origin from user configuration for testing
+TEST_ORIGIN="http://localhost:5173"
+if [ "$CORS_ORIGINS" != "*" ]; then
+    TEST_ORIGIN=$(echo "$CORS_ORIGINS" | cut -d',' -f1)
+fi
+
+print_info "Testing CORS with origin: $TEST_ORIGIN"
+CORS_TEST=$(curl -s -H "Origin: $TEST_ORIGIN" -H "Access-Control-Request-Method: POST" -X OPTIONS http://127.0.0.1:8080/authenticate -I 2>/dev/null | grep -i "access-control" || echo "")
 
 if [ -n "$CORS_TEST" ]; then
     print_success "CORS headers detected:"
     echo "$CORS_TEST"
 else
     print_info "CORS headers not detected in local test. Testing external endpoint..."
-    # Test the actual external endpoint
-    EXTERNAL_CORS_TEST=$(curl -s -H "Origin: http://localhost:5173" -H "Access-Control-Request-Method: POST" -X OPTIONS https://0xmail.box/authenticate -I 2>/dev/null | grep -i "access-control" || echo "")
+    # Try to detect the external hostname
+    EXTERNAL_HOST=$(docker inspect $(docker ps --filter "name=traefik" --format "{{.ID}}") 2>/dev/null | grep -o '"traefik.http.routers.[^.]*\.rule=Host(`[^`]*`)"' | head -1 | sed 's/.*Host(`\([^`]*\)`).*/\1/' || echo "")
     
-    if [ -n "$EXTERNAL_CORS_TEST" ]; then
-        print_success "CORS headers detected on external endpoint:"
-        echo "$EXTERNAL_CORS_TEST"
+    if [ -n "$EXTERNAL_HOST" ]; then
+        print_info "Testing external endpoint: https://$EXTERNAL_HOST"
+        EXTERNAL_CORS_TEST=$(curl -s -H "Origin: $TEST_ORIGIN" -H "Access-Control-Request-Method: POST" -X OPTIONS https://$EXTERNAL_HOST/authenticate -I 2>/dev/null | grep -i "access-control" || echo "")
+        
+        if [ -n "$EXTERNAL_CORS_TEST" ]; then
+            print_success "CORS headers detected on external endpoint:"
+            echo "$EXTERNAL_CORS_TEST"
+        else
+            print_warning "CORS headers not detected. The fix might need a few more minutes to take effect."
+        fi
     else
-        print_warning "CORS headers not detected. The fix might need a few more minutes to take effect."
+        print_info "External hostname not detected. CORS should work once containers are fully started."
     fi
 fi
 
@@ -144,9 +203,11 @@ echo ""
 print_success "WildDuck API server fix completed!"
 echo ""
 echo "📋 Summary of changes:"
-echo "  ✅ CORS configuration enabled in api.toml"
+echo "  ✅ CORS configuration enabled in api.toml with origins: $CORS_ORIGINS"
+echo "  ✅ Host binding fixed (127.0.0.1 → 0.0.0.0) for Docker networking"
 echo "  ✅ Docker container now runs api.js instead of server.js"
 echo "  ✅ Service restarted with new configuration"
+echo "  ✅ API endpoint and CORS headers tested"
 echo ""
 echo "🧪 Next steps:"
 echo "  1. Wait 1-2 minutes for all services to fully start"
