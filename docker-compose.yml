@@ -1,10 +1,21 @@
+# WildDuck Dockerized - Main Deployment Configuration
+# See .claude/PROJECT_CONTEXT.md for architecture overview
+# See ENDPOINTS.md for API reference
+# See .env.example for configuration options
+
 version: "3.8"
+
+# Persistent data volumes
 volumes:
-  mongo:
-  redis:
-  postgres:
-  traefik:
+  mongo:      # User accounts, mailboxes, messages
+  redis:      # Sessions, cache, queues
+  postgres:   # Blockchain indexing data
+  traefik:    # Traefik configuration and certificates
+
 services:
+  # WildDuck - IMAP/POP3/API Server
+  # Handles mail protocols and provides REST API for management
+  # API accessible at https://HOSTNAME/api (requires X-Access-Token)
   wildduck:
     image: johnqh/wildduck:latest
     restart: unless-stopped
@@ -28,39 +39,44 @@ services:
       retries: 3
       start_period: 60s
     labels:
+      # Enable Traefik routing for this service
       traefik.enable: true
+
+      # IMAPS (Port 993) - Secure IMAP over TLS
       traefik.tcp.routers.wildduck-imaps.entrypoints: imaps
       traefik.tcp.routers.wildduck-imaps.rule: HostSNI(`HOSTNAME`)
-      # traefik.tcp.routers.wildduck-imaps.tls.certresolver: letsencrypt
       traefik.tcp.routers.wildduck-imaps.tls: true
+      # traefik.tcp.routers.wildduck-imaps.tls.certresolver: letsencrypt  # Uncomment for Let's Encrypt
       traefik.tcp.routers.wildduck-imaps.service: wildduck-imaps
       traefik.tcp.services.wildduck-imaps.loadbalancer.server.port: 143
+
+      # POP3S (Port 995) - Secure POP3 over TLS
       traefik.tcp.routers.wildduck-pop3s.entrypoints: pop3s
       traefik.tcp.routers.wildduck-pop3s.rule: HostSNI(`HOSTNAME`)
-      # traefik.tcp.routers.wildduck-pop3s.tls.certresolver: letsencrypt
       traefik.tcp.routers.wildduck-pop3s.tls: true
+      # traefik.tcp.routers.wildduck-pop3s.tls.certresolver: letsencrypt  # Uncomment for Let's Encrypt
       traefik.tcp.routers.wildduck-pop3s.service: wildduck-pop3s
       traefik.tcp.services.wildduck-pop3s.loadbalancer.server.port: 110
-      traefik.http.routers.wildduck-api-path.entrypoints: websecure # Expose over HTTPS
 
-      # Rule: Match the host and require the /api path prefix
+      # HTTPS API (Port 443) - REST API at /api path
+      traefik.http.routers.wildduck-api-path.entrypoints: websecure
       traefik.http.routers.wildduck-api-path.rule: Host(`HOSTNAME`) && PathPrefix(`/api`)
-      # traefik.http.routers.wildduck-api-path.rule: Host(`HOSTNAME`)
-
-      # traefik.http.routers.wildduck-api-path.tls: true
-      traefik.http.routers.wildduck-api-path.tls.certresolver: letsencrypt # Get a Let's Encrypt cert
+      traefik.http.routers.wildduck-api-path.tls.certresolver: letsencrypt
       traefik.http.routers.wildduck-api-path.middlewares: wildduck-api-stripprefix@docker
       traefik.http.services.wildduck-api-path.loadbalancer.server.port: 8080
 
-      # Middleware definition: This must be on the same level as the router/service definitions
-      # It creates a middleware named 'wildduck-api-stripprefix'
+      # Middleware: Strip /api prefix before forwarding to WildDuck
+      # Converts https://HOSTNAME/api/users → http://wildduck:8080/users
       traefik.http.middlewares.wildduck-api-stripprefix.stripprefix.prefixes: /api
 
+  # ZoneMTA - Outbound SMTP Server
+  # Queues and sends outgoing emails
+  # Handles DKIM signing and delivery retries
   zonemta:
     image: ghcr.io/zone-eu/zonemta-wildduck:1.32.20
     restart: unless-stopped
     # ports:
-    #   - "587:587" # for local testing
+    #   - "587:587" # Uncomment for local testing
     depends_on:
       - mongo
       - redis
@@ -68,26 +84,33 @@ services:
       - ./config/zone-mta:/app/config
     labels:
       traefik.enable: true
+      # SMTPS (Port 465) - Secure SMTP for sending
       traefik.tcp.routers.zonemta.entrypoints: smtps
       traefik.tcp.routers.zonemta.rule: HostSNI(`HOSTNAME`)
-      # traefik.tcp.routers.zonemta.tls.certresolver: letsencrypt
       traefik.tcp.routers.zonemta.tls: true
+      # traefik.tcp.routers.zonemta.tls.certresolver: letsencrypt  # Uncomment for Let's Encrypt
       traefik.tcp.services.zonemta.loadbalancer.server.port: 587
 
+  # Haraka - Inbound SMTP Server
+  # Receives incoming emails from the internet
+  # Integrates with Rspamd for spam filtering
   haraka:
     image: johnqh/haraka-plugin-wildduck:latest
     restart: unless-stopped
     ports:
-      - "25:25"
+      - "25:25"  # SMTP port must be exposed directly (not via Traefik)
     depends_on:
       - mongo
       - redis
       - rspamd
     volumes:
       - ./config/haraka:/app/config
-      - ./certs/HOSTNAME-key.pem:/app/config/tls_key.pem
-      - ./certs/HOSTNAME.pem:/app/config/tls_cert.pem
+      - ./certs/HOSTNAME-key.pem:/app/config/tls_key.pem  # TLS certificate
+      - ./certs/HOSTNAME.pem:/app/config/tls_cert.pem      # TLS certificate
 
+  # Rspamd - Spam Filter
+  # Analyzes incoming emails for spam/phishing
+  # Provides DKIM/SPF/DMARC verification
   rspamd:
     image: nodemailer/rspamd
     restart: unless-stopped
@@ -98,11 +121,14 @@ services:
       - ./config/rspamd/worker-normal.conf:/etc/rspamd/worker-normal.conf
       - ./config/rspamd/local.d:/etc/rspamd/local.d
 
+  # MongoDB - Primary Database
+  # Stores user accounts, mailboxes, messages, and configuration
+  # Shared by WildDuck, ZoneMTA, and Haraka
   mongo:
     image: mongo
     restart: unless-stopped
     volumes:
-      - mongo:/data/db
+      - mongo:/data/db  # Persistent storage for database
     healthcheck:
       test: ["CMD", "mongosh", "--eval", "db.adminCommand('ping')"]
       interval: 10s
@@ -110,11 +136,14 @@ services:
       retries: 5
       start_period: 30s
 
+  # Redis - Cache and Session Store
+  # Used for sessions, rate limiting, and temporary data
+  # Shared across all services
   redis:
     image: redis:alpine
     restart: unless-stopped
     volumes:
-      - redis:/data
+      - redis:/data  # Persistent storage for Redis data
     healthcheck:
       test: ["CMD", "redis-cli", "ping"]
       interval: 10s
@@ -122,18 +151,23 @@ services:
       retries: 5
       start_period: 10s
 
+  # Mail Box Indexer - Blockchain Integration Service
+  # Indexes blockchain events for wallet-based email addresses
+  # Provides OAuth 2.0 authentication and points system
+  # API accessible at https://HOSTNAME/idx
   mail_box_indexer:
     image: johnqh/mail_box_indexer:latest
     restart: unless-stopped
     # ports:
-    #   - "127.0.0.1:42069:42069" # for local testing
+    #   - "127.0.0.1:42069:42069" # Uncomment for local API access
     depends_on:
       postgres:
-        condition: service_healthy
+        condition: service_healthy  # Wait for PostgreSQL to be ready
       mongo:
-        condition: service_healthy
+        condition: service_healthy  # Needs MongoDB for user lookup
       redis:
-        condition: service_healthy
+        condition: service_healthy  # Uses Redis for caching
+    # All configuration via environment variables (see .env.example)
     environment:
       - NODE_ENV=production
       - DATABASE_URL=postgresql://ponder:password@postgres:5432/mail_box_indexer
@@ -166,26 +200,32 @@ services:
       start_period: 120s
     labels:
       traefik.enable: true
+      # HTTPS API (Port 443) - Blockchain indexer API at /idx path
       traefik.http.routers.mail-box-indexer.entrypoints: websecure
       traefik.http.routers.mail-box-indexer.rule: Host(`HOSTNAME`) && PathPrefix(`/idx`)
       traefik.http.routers.mail-box-indexer.tls: true
       traefik.http.routers.mail-box-indexer.tls.certresolver: letsencrypt
       traefik.http.routers.mail-box-indexer.middlewares: mail-box-indexer-stripprefix@docker
       traefik.http.services.mail-box-indexer.loadbalancer.server.port: 42069
+      # Middleware: Strip /idx prefix before forwarding to indexer
+      # Converts https://HOSTNAME/idx/users → http://mail_box_indexer:42069/users
       traefik.http.middlewares.mail-box-indexer-stripprefix.stripprefix.prefixes: /idx
 
+  # PostgreSQL - Indexer Database
+  # Stores blockchain event data and indexing state
+  # Used exclusively by Mail Box Indexer (Ponder framework)
   postgres:
     image: postgres:15
     restart: unless-stopped
     environment:
-      POSTGRES_DB: mail_box_indexer
-      POSTGRES_USER: ponder
-      POSTGRES_PASSWORD: password
+      POSTGRES_DB: mail_box_indexer         # Database name
+      POSTGRES_USER: ponder                 # Database user
+      POSTGRES_PASSWORD: password           # Database password (change in production!)
       POSTGRES_INITDB_ARGS: "--encoding=UTF-8"
     ports:
-      - "127.0.0.1:5432:5432"
+      - "127.0.0.1:5432:5432"  # Expose only on localhost for debugging
     volumes:
-      - postgres:/var/lib/postgresql/data
+      - postgres:/var/lib/postgresql/data  # Persistent storage
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U ponder -d mail_box_indexer"]
       interval: 10s
@@ -193,41 +233,57 @@ services:
       retries: 5
       start_period: 30s
 
+  # Traefik - Reverse Proxy and Load Balancer
+  # Handles TLS termination and routing for all services
+  # Automatically obtains Let's Encrypt certificates
   traefik:
     image: traefik:3.3.4
     restart: unless-stopped
     command:
-      - "--entrypoints.web.address=:80"
-      - "--entrypoints.websecure.address=:443"
-      - "--entrypoints.imaps.address=:993"
-      - "--entrypoints.pop3s.address=:995"
-      - "--entrypoints.smtps.address=:465"
+      # Entry points (listening ports)
+      - "--entrypoints.web.address=:80"           # HTTP
+      - "--entrypoints.websecure.address=:443"    # HTTPS
+      - "--entrypoints.imaps.address=:993"        # IMAPS
+      - "--entrypoints.pop3s.address=:995"        # POP3S
+      - "--entrypoints.smtps.address=:465"        # SMTPS
+
+      # Docker provider - auto-discover services from Docker labels
       - "--providers.docker"
-      - "--providers.docker.exposedByDefault=false"
+      - "--providers.docker.exposedByDefault=false"  # Only expose services with traefik.enable=true
+
+      # File provider - load static configuration from files
       - "--providers.file=true"
       - "--providers.file.directory=/etc/traefik/dynamic_conf"
       - "--providers.file.watch=true"
+
+      # TLS/SSL configuration
       - "--serversTransport.insecureSkipVerify=true"
       - "--serversTransport.rootCAs=/etc/traefik/certs/rootCA.pem"
+
+      # Logging
       - "--log.level=DEBUG"
+
+      # Let's Encrypt configuration (uncomment for production)
       # - "--certificatesresolvers.letsencrypt.acme.email=ACME_EMAIL"
       # - "--certificatesresolvers.letsencrypt.acme.storage=/data/acme.json"
       # - "--certificatesresolvers.letsencrypt.acme.tlschallenge=true"
     labels:
       traefik.enable: true
+      # HTTP to HTTPS redirect middleware
       traefik.http.middlewares.redirect-to-https.redirectscheme.scheme: https
+      # Apply redirect to all HTTP traffic
       traefik.http.routers.redirs.entrypoints: web
       traefik.http.routers.redirs.middlewares: redirect-to-https
       traefik.http.routers.redirs.rule: hostregexp(`{host:.+}`)
 
     ports:
-      - 80:80/tcp
-      - 443:443/tcp
-      - 993:993/tcp
-      - 995:995/tcp
-      - 465:465/tcp
+      - 80:80/tcp      # HTTP (redirects to HTTPS)
+      - 443:443/tcp    # HTTPS
+      - 993:993/tcp    # IMAPS
+      - 995:995/tcp    # POP3S
+      - 465:465/tcp    # SMTPS
     volumes:
-      - /var/run/docker.sock:/var/run/docker.sock:ro
-      - traefik:/data
-      - ./certs:/etc/traefik/certs # Mount your certs directory
-      - ./dynamic_conf:/etc/traefik/dynamic_conf:ro
+      - /var/run/docker.sock:/var/run/docker.sock:ro  # Docker API access (read-only)
+      - traefik:/data                                  # Persistent storage (ACME certificates)
+      - ./certs:/etc/traefik/certs                     # SSL/TLS certificates
+      - ./dynamic_conf:/etc/traefik/dynamic_conf:ro    # Static configuration files
