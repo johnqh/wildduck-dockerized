@@ -2,6 +2,7 @@ version: "3.8"
 volumes:
   mongo:
   redis:
+  postgres:
   traefik:
 services:
   wildduck:
@@ -54,28 +55,6 @@ services:
       # Middleware definition: This must be on the same level as the router/service definitions
       # It creates a middleware named 'wildduck-api-stripprefix'
       traefik.http.middlewares.wildduck-api-stripprefix.stripprefix.prefixes: /api
-  wildduck-webmail:
-    image: johnqh/wildduck-webmail:latest
-    restart: unless-stopped
-    command:
-      - ""
-    # ports:
-    #   - 3000:3000 # for local testing
-    depends_on:
-      - mongo
-      - redis
-      - wildduck
-    volumes:
-      - ./config/wildduck-webmail:/app/config
-    labels:
-      traefik.enable: true
-      traefik.http.routers.wildduck-webmail-web.entrypoints: web
-      traefik.http.routers.wildduck-webmail-web.rule: Host(`HOSTNAME`) && !PathPrefix(`/api`) # IMPORTANT: Exclude /api path
-      traefik.http.routers.wildduck-webmail.entrypoints: websecure
-      traefik.http.routers.wildduck-webmail.rule: Host(`HOSTNAME`) && !PathPrefix(`/api`) # IMPORTANT: Exclude /api path
-      traefik.http.routers.wildduck-webmail.tls: true
-      traefik.http.routers.wildduck-webmail.tls.certresolver: letsencrypt
-      traefik.http.services.wildduck-webmail.loadbalancer.server.port: 3000
 
   zonemta:
     image: ghcr.io/zone-eu/zonemta-wildduck:1.32.20
@@ -142,6 +121,77 @@ services:
       timeout: 5s
       retries: 5
       start_period: 10s
+
+  mail_box_indexer:
+    image: johnqh/mail_box_indexer:latest
+    restart: unless-stopped
+    # ports:
+    #   - "127.0.0.1:42069:42069" # for local testing
+    depends_on:
+      postgres:
+        condition: service_healthy
+      mongo:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    environment:
+      - NODE_ENV=production
+      - DATABASE_URL=postgresql://ponder:password@postgres:5432/mail_box_indexer
+      - DATABASE_SCHEMA=public
+      - EMAIL_DOMAIN=${EMAIL_DOMAIN:-0xmail.box}
+      - WILDDUCK_ENDPOINT_URL=http://wildduck:8080
+      - WILDDUCK_IP_ADDRESS=${WILDDUCK_IP_ADDRESS:-127.0.0.1}
+      - INDEXER_PRIVATE_KEY=${INDEXER_PRIVATE_KEY}
+      - INDEXER_WALLET_ADDRESS=${INDEXER_WALLET_ADDRESS}
+      - ALCHEMY_API_KEY=${ALCHEMY_API_KEY}
+      - POINTS_EMAIL_BACKEND_IP=${POINTS_EMAIL_BACKEND_IP:-127.0.0.1}
+      - POINTS_ADMIN_FRONTEND_IP=${POINTS_ADMIN_FRONTEND_IP:-127.0.0.1}
+      - ENABLE_TESTNETS=${ENABLE_TESTNETS:-false}
+      - LOG_LEVEL=${LOG_LEVEL:-info}
+      - PONDER_TELEMETRY_DISABLED=${PONDER_TELEMETRY_DISABLED:-true}
+      - KYC_ENABLED=${KYC_ENABLED:-false}
+      - SUMSUB_APP_TOKEN=${SUMSUB_APP_TOKEN:-}
+      - SUMSUB_SECRET_KEY=${SUMSUB_SECRET_KEY:-}
+      - SUMSUB_WEBHOOK_SECRET=${SUMSUB_WEBHOOK_SECRET:-}
+      - SUMSUB_BASE_URL=${SUMSUB_BASE_URL:-https://test-api.sumsub.com}
+      - HELIUS_API_KEY=${HELIUS_API_KEY:-}
+      - API_URL=${API_URL:-http://localhost:42069}
+      - REVENUECAT_API_KEY=${REVENUECAT_API_KEY:-}
+      - REVENUECAT_NAMESERVICE_ENTITLEMENT=${REVENUECAT_NAMESERVICE_ENTITLEMENT:-nameservice}
+    healthcheck:
+      test: ["CMD", "wget", "--quiet", "--tries=1", "--spider", "http://localhost:42069/health"]
+      interval: 30s
+      timeout: 15s
+      retries: 3
+      start_period: 120s
+    labels:
+      traefik.enable: true
+      traefik.http.routers.mail-box-indexer.entrypoints: websecure
+      traefik.http.routers.mail-box-indexer.rule: Host(`HOSTNAME`) && PathPrefix(`/idx`)
+      traefik.http.routers.mail-box-indexer.tls: true
+      traefik.http.routers.mail-box-indexer.tls.certresolver: letsencrypt
+      traefik.http.routers.mail-box-indexer.middlewares: mail-box-indexer-stripprefix@docker
+      traefik.http.services.mail-box-indexer.loadbalancer.server.port: 42069
+      traefik.http.middlewares.mail-box-indexer-stripprefix.stripprefix.prefixes: /idx
+
+  postgres:
+    image: postgres:15
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: mail_box_indexer
+      POSTGRES_USER: ponder
+      POSTGRES_PASSWORD: password
+      POSTGRES_INITDB_ARGS: "--encoding=UTF-8"
+    ports:
+      - "127.0.0.1:5432:5432"
+    volumes:
+      - postgres:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ponder -d mail_box_indexer"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 30s
 
   traefik:
     image: traefik:3.3.4

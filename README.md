@@ -4,13 +4,14 @@ The default docker-compose file will set up:
 
 | Service          | Why                                                       |
 | ---------------- | --------------------------------------------------------- |
-| WildDuck         | IMAP, POP3                                                |
-| WildDuck Webmail | Webmail, creating accounts, <br> editing account settings |
+| WildDuck         | IMAP, POP3, API                                           |
 | ZoneMTA          | Outbound smtp                                             |
 | Haraka           | Inbound smtp                                              |
 | Rspamd           | Spam filtering                                            |
+| Mail Box Indexer | Blockchain indexer for wallet-based email addresses       |
 | Traefik          | Reverse proxy with automatic TLS                          |
 | MongoDB          | Database used by most services                            |
+| PostgreSQL       | Database used by Mail Box Indexer                         |
 | Redis            | Key-value store used by most services                     |
 
 For the default docker-compose file to work without any further setup, you need port 80/443 available for Traefik to get certificates or provide your own certificates mounted as a volume. However, the compose file is not set in stone. You can remove Traefik from the equation and use your own reverse proxy (or configure the applications to handle TLS directly), remove certain services, etc.
@@ -81,6 +82,43 @@ Configuration files for all services reside in `./config-generated`. Alter them 
     ```
     <RECORD_NAME> IN <TYPE> <VALUE>
     ```
+
+## Mail Box Indexer Configuration
+
+The Mail Box Indexer enables blockchain-based email addresses by indexing smart contracts on multiple chains.
+
+### Required Environment Variables
+
+Create a `.env` file in the root directory based on `.env.example`:
+
+```bash
+# Required credentials
+INDEXER_PRIVATE_KEY=your_indexer_private_key
+INDEXER_WALLET_ADDRESS=your_indexer_wallet_address
+ALCHEMY_API_KEY=your_alchemy_api_key
+
+# Optional configurations
+EMAIL_DOMAIN=0xmail.box
+ENABLE_TESTNETS=false
+LOG_LEVEL=info
+```
+
+### Features
+
+- **Multi-chain Support**: Indexes contracts on Ethereum, Polygon, Optimism, and Base
+- **Points System**: Tracks user engagement and referrals
+- **KYC Integration**: Optional Sumsub integration for verification
+- **Solana Support**: Optional Helius integration for Solana events
+- **Subscription Management**: Optional RevenueCat integration
+
+### API Endpoint
+
+The indexer API is accessible at:
+- **External**: `https://HOSTNAME/idx` (routed through Traefik)
+- **Internal**: `http://mail_box_indexer:42069` (from other containers)
+- **Local testing**: Uncomment port mapping in docker-compose.yml for `http://localhost:42069`
+
+For detailed configuration options, see `.env.example`
 
 ## Info
 
