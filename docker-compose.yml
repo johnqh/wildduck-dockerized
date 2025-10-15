@@ -12,6 +12,15 @@ volumes:
   postgres:   # Blockchain indexing data
   traefik:    # Traefik configuration and certificates
 
+# Custom network with static IP allocation
+networks:
+  wildduck_network:
+    driver: bridge
+    ipam:
+      config:
+        - subnet: 172.20.0.0/16
+          gateway: 172.20.0.1
+
 services:
   # WildDuck - IMAP/POP3/API Server
   # Handles mail protocols and provides REST API for management
@@ -32,6 +41,10 @@ services:
       - ./config/wildduck:/wildduck/config
     environment:
       - NODE_ENV=production
+      - WILDDUCK_API_INDEXERBASEURL=http://mail_box_indexer:42069
+    networks:
+      wildduck_network:
+        ipv4_address: 172.20.0.10
     healthcheck:
       test: ["CMD", "wget", "--quiet", "--tries=1", "--spider", "http://localhost:8080/health"]
       interval: 30s
@@ -95,7 +108,7 @@ services:
   # Receives incoming emails from the internet
   # Integrates with Rspamd for spam filtering
   haraka:
-    image: johnqh/haraka-plugin-wildduck:latest
+    image: johnqh/haraka:latest
     restart: unless-stopped
     ports:
       - "25:25"  # SMTP port must be exposed directly (not via Traefik)
@@ -174,7 +187,7 @@ services:
       - DATABASE_SCHEMA=public
       - EMAIL_DOMAIN=${EMAIL_DOMAIN:-0xmail.box}
       - WILDDUCK_ENDPOINT_URL=http://wildduck:8080
-      - WILDDUCK_IP_ADDRESS=${WILDDUCK_IP_ADDRESS:-127.0.0.1}
+      - WILDDUCK_IP_ADDRESS=${WILDDUCK_IP_ADDRESS:-172.20.0.10}
       - INDEXER_PRIVATE_KEY=${INDEXER_PRIVATE_KEY}
       - INDEXER_WALLET_ADDRESS=${INDEXER_WALLET_ADDRESS}
       - ALCHEMY_API_KEY=${ALCHEMY_API_KEY}
@@ -192,6 +205,9 @@ services:
       - API_URL=${API_URL:-http://localhost:42069}
       - REVENUECAT_API_KEY=${REVENUECAT_API_KEY:-}
       - REVENUECAT_NAMESERVICE_ENTITLEMENT=${REVENUECAT_NAMESERVICE_ENTITLEMENT:-nameservice}
+    networks:
+      wildduck_network:
+        ipv4_address: 172.20.0.20
     healthcheck:
       test: ["CMD", "wget", "--quiet", "--tries=1", "--spider", "http://localhost:42069/health"]
       interval: 30s

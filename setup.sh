@@ -23,43 +23,18 @@ case $yn in
     [Nn]* ) echo "No files and folders removed. Exiting..."; exit;;
     * ) sudo rm -rf ./config-generated && sudo rm -rf ./acme.json && sudo rm -rf update_certs.sh;;
 esac
-SERVICES="Wildduck, Zone-MTA, Haraka, Wildduck Webmail"
+SERVICES="Wildduck, Zone-MTA, Haraka, Mail Box Indexer"
 
 echo "Setting up $SERVICES"
 
-if [ "$#" -gt "0" ]
-  then
-    # foo/bar -> bar
-    MAILDOMAIN=${args[0]}
-    HOSTNAME=${args[1]:-$MAILDOMAIN}
-    FULL_SETUP=${args[2]:-false}
+# Mail domain and hostname are hardcoded
+MAILDOMAIN="0xmail.box"
+HOSTNAME="mail.0xmail.box"
 
-    if [ "$HOSTNAME" = "full" ]; then
-        FULL_SETUP=$HOSTNAME
-        HOSTNAME=$MAILDOMAIN
-    fi
+echo -e "MAIL DOMAIN: $MAILDOMAIN, HOSTNAME: $HOSTNAME"
 
-    echo -e "DOMAINNAME: $MAILDOMAIN, HOSTNAME: $HOSTNAME, FULL_SETUP: $FULL_SETUP"
-  else
-    echo -e "You specified ZERO arguments, I will ask you for arguments directly \n"
-
-    read -p "Specify the DOMAIN of your server: " MAILDOMAIN
-    read -p "Perfect! The email domain is: $MAILDOMAIN. Do you wish to also specify the hostname? [y/N] " yn
-
-    case $yn in
-        [Yy]* ) read -p "Hostname of the machine: " HOSTNAME;;
-        [Nn]* ) echo "No hostname provided. Will use domain as hostname"; HOSTNAME=$MAILDOMAIN;;
-        * ) echo "No hostname provided. Will use domain as hostname"; HOSTNAME=$MAILDOMAIN;;
-    esac
-
-    echo -e "DOMAINNAME: $MAILDOMAIN, HOSTNAME: $HOSTNAME"
-fi
-
-# Prompt for INDEXER_BASE_URL
-read -p "Enter the INDEXER_BASE_URL for the WildDuck project: " INDEXER_BASE_URL
-if [ -z "$INDEXER_BASE_URL" ]; then
-    echo "Warning: INDEXER_BASE_URL is empty. This may cause issues with the WildDuck indexer."
-fi
+# Indexer URL uses internal Docker service name
+INDEXER_BASE_URL="http://mail_box_indexer:42069"
 
 # Export the variable for current session
 export INDEXER_BASE_URL="$INDEXER_BASE_URL"
@@ -78,38 +53,108 @@ fi
 
 echo "INDEXER_BASE_URL has been set to: $INDEXER_BASE_URL"
 
+# Doppler Integration for Indexer Environment Variables
+echo ""
+echo "--- Indexer Environment Variables ---"
+echo "Enter your Doppler service token for the Mail Box Indexer."
+echo "(This will download all indexer secrets from Doppler)"
+echo ""
+read -p "Doppler service token for Indexer: " DOPPLER_TOKEN
+
+if [ -z "$DOPPLER_TOKEN" ]; then
+    echo "Error: Doppler token cannot be empty"
+    exit 1
+fi
+
+echo "Downloading environment variables from Doppler..."
+
+# Download from Doppler to a temporary file
+DOPPLER_ENV_FILE=".env.doppler"
+HTTP_CODE=$(curl -u "$DOPPLER_TOKEN:" \
+    -w "%{http_code}" \
+    -o "$DOPPLER_ENV_FILE" \
+    -s \
+    https://api.doppler.com/v3/configs/config/secrets/download?format=env)
+
+if [ "$HTTP_CODE" -eq 200 ]; then
+    echo "✓ Successfully downloaded secrets from Doppler"
+
+    # If .env exists, merge with Doppler taking precedence
+    if [ -f .env ]; then
+        echo "Merging Doppler secrets with existing .env file..."
+        # Backup existing .env
+        cp .env .env.backup
+
+        # Merge: Keep existing .env, then overwrite with Doppler values
+        cat .env.backup "$DOPPLER_ENV_FILE" | \
+            awk -F= '!seen[$1]++ || /^[A-Z_]+=/' > .env.temp
+        mv .env.temp .env
+
+        echo "✓ Merged Doppler secrets (Doppler values take precedence)"
+    else
+        # No existing .env, just use Doppler file
+        mv "$DOPPLER_ENV_FILE" .env
+        echo "✓ Created .env from Doppler secrets"
+    fi
+
+    # Clean up
+    rm -f "$DOPPLER_ENV_FILE" .env.backup
+
+    # Update INDEXER_BASE_URL in the merged file
+    if grep -q "^INDEXER_BASE_URL=" .env; then
+        sed -i "s|^INDEXER_BASE_URL=.*|INDEXER_BASE_URL=$INDEXER_BASE_URL|" .env
+    else
+        echo "INDEXER_BASE_URL=$INDEXER_BASE_URL" >> .env
+    fi
+
+    echo "✓ Environment variables configured"
+else
+    echo "Error: Failed to download from Doppler (HTTP $HTTP_CODE)"
+    echo "Please check your service token and try again"
+    rm -f "$DOPPLER_ENV_FILE"
+    exit 1
+fi
+
 # CORS Configuration
 echo ""
 echo "--- CORS Configuration ---"
-echo "CORS (Cross-Origin Resource Sharing) allows web browsers to access your WildDuck API from different domains."
-echo "This is typically needed if you have a web frontend that will access the API."
-echo ""
-read -p "Do you want to enable CORS for the WildDuck API? [Y/n] " ENABLE_CORS
 
-CORS_ORIGINS=""
-case $ENABLE_CORS in
-    [Nn]* ) 
-        echo "CORS will be disabled."
-        CORS_ENABLED=false
-        ;;
-    * ) 
-        echo "CORS will be enabled."
-        CORS_ENABLED=true
-        echo ""
-        echo "You can specify which domains are allowed to access the API."
-        echo "Examples:"
-        echo "  - Use '*' to allow all domains (least secure, good for development)"
-        echo "  - Use 'http://localhost:3000' for local development"
-        echo "  - Use 'https://yourdomain.com' for production"
-        echo ""
-        read -p "Enter allowed origins (comma-separated, or '*' for all): " CORS_ORIGINS
-        
-        if [ -z "$CORS_ORIGINS" ]; then
-            CORS_ORIGINS="*"
-            echo "No origins specified, defaulting to '*' (all domains)"
-        fi
-        ;;
-esac
+# Check if CORS origins are set in Doppler/environment
+if [ -n "$WILDDUCK_CORS_ORIGINS" ]; then
+    echo "Using CORS origins from environment: $WILDDUCK_CORS_ORIGINS"
+    CORS_ORIGINS="$WILDDUCK_CORS_ORIGINS"
+    CORS_ENABLED=true
+else
+    echo "CORS (Cross-Origin Resource Sharing) allows web browsers to access your WildDuck API from different domains."
+    echo "This is typically needed if you have a web frontend that will access the API."
+    echo ""
+    read -p "Do you want to enable CORS for the WildDuck API? [Y/n] " ENABLE_CORS
+
+    CORS_ORIGINS=""
+    case $ENABLE_CORS in
+        [Nn]* )
+            echo "CORS will be disabled."
+            CORS_ENABLED=false
+            ;;
+        * )
+            echo "CORS will be enabled."
+            CORS_ENABLED=true
+            echo ""
+            echo "You can specify which domains are allowed to access the API."
+            echo "Examples:"
+            echo "  - Use '*' to allow all domains (least secure, good for development)"
+            echo "  - Use 'http://localhost:3000' for local development"
+            echo "  - Use 'https://yourdomain.com' for production"
+            echo ""
+            read -p "Enter allowed origins (comma-separated, or '*' for all): " CORS_ORIGINS
+
+            if [ -z "$CORS_ORIGINS" ]; then
+                CORS_ORIGINS="*"
+                echo "No origins specified, defaulting to '*' (all domains)"
+            fi
+            ;;
+    esac
+fi
 
 if [ ! -e ./config-generated ]; then 
     echo "Copying default configuration into ./config-generated/config-generated"
@@ -123,6 +168,14 @@ fi
 # Docker compose
 echo "Copying default docker-compose to ./config-generated"
 cp ./docker-compose.yml ./config-generated/docker-compose.yml
+
+# Copy .env file for mail_box_indexer configuration
+if [ -f .env ]; then
+    echo "Copying .env file to ./config-generated"
+    cp .env ./config-generated/.env
+else
+    echo "Warning: No .env file found. Please copy .env.example to .env and configure it."
+fi
 
 # stop exisiting wildduck-dockerized container
 sudo docker stop $(sudo docker ps -q --filter "name=^/config-generated")
@@ -193,9 +246,6 @@ if ! $USE_SELF_SIGNED_CERTS; then
     # Uncomment the traefik.tcp.routers.wildduck-imaps.tls.certresolver line
     sed -i "s|# traefik.tcp.routers.wildduck-imaps.tls.certresolver: letsencrypt|traefik.tcp.routers.wildduck-imaps.tls.certresolver: letsencrypt|g" ./config-generated/docker-compose.yml
 
-    # Uncomment the traefik.http.routers.wildduck-webmail.tls.certresolver line
-    sed -i "s|# traefik.http.routers.wildduck-webmail.tls.certresolver: letsencrypt|traefik.http.routers.wildduck-webmail.tls.certresolver: letsencrypt|g" ./config-generated/docker-compose.yml
-
     # Delete the traefik.tcp.routers.zonemta.tls: true line
     sed -i "/traefik.tcp.routers.zonemta.tls: true/d" ./config-generated/docker-compose.yml
 
@@ -204,9 +254,6 @@ if ! $USE_SELF_SIGNED_CERTS; then
 
     # Delete the traefik.tcp.routers.wildduck-imaps.tls: true line
     sed -i "/traefik.tcp.routers.wildduck-imaps.tls: true/d" ./config-generated/docker-compose.yml
-
-    # Delete the traefik.http.routers.wildduck-webmail.tls: true line
-    sed -i "/traefik.http.routers.wildduck-webmail.tls: true/d" ./config-generated/docker-compose.yml
 
     sed -i "/- \.\/dynamic_conf:\/etc\/traefik\/dynamic_conf:ro/d" ./config-generated/docker-compose.yml
 
@@ -248,22 +295,35 @@ sed -i "s/emailDomain=\"email.example.com\"/emailDomain=\"$MAILDOMAIN\"/" ./conf
 
 echo "Generating secrets and placing them in $SERVICES configuration"
 
-SRS_SECRET=`head /dev/urandom | tr -dc A-Za-z0-9 | head -c30`
-ZONEMTA_SECRET=`head /dev/urandom | tr -dc A-Za-z0-9 | head -c30`
-DKIM_SECRET=`head /dev/urandom | tr -dc A-Za-z0-9 | head -c30`
-ACCESS_TOKEN=`head /dev/urandom | tr -dc A-Za-z0-9 | head -c30`
-HMAC_SECRET=`head /dev/urandom | tr -dc A-Za-z0-9 | head -c30`
+# Source .env to get Doppler values
+source .env
+
+# Use Doppler values if available, otherwise generate randomly
+SRS_SECRET=${WILDDUCK_SRS_SECRET:-$(head /dev/urandom | tr -dc A-Za-z0-9 | head -c30)}
+ZONEMTA_SECRET=${ZONEMTA_LOOP_SECRET:-$(head /dev/urandom | tr -dc A-Za-z0-9 | head -c30)}
+DKIM_SECRET=${WILDDUCK_DKIM_SECRET:-$(head /dev/urandom | tr -dc A-Za-z0-9 | head -c30)}
+ACCESS_TOKEN=${WILDDUCK_ACCESS_TOKEN:-$(head /dev/urandom | tr -dc A-Za-z0-9 | head -c30)}
+HMAC_SECRET=${WILDDUCK_HMAC_SECRET:-$(head /dev/urandom | tr -dc A-Za-z0-9 | head -c30)}
+
+# MongoDB URL - use Doppler value or default to Docker service
+MONGO_URL=${WILDDUCK_MONGO_URL:-mongodb://mongo:27017/wildduck}
+
+# WildDuck root username - use Doppler value or default to "admin"
+ROOT_USERNAME=${WILDDUCK_ROOT_USERNAME:-admin}
 
 # Zone-MTA
 sed -i "s/secret=\"super secret value\"/secret=\"$ZONEMTA_SECRET\"/" ./config-generated/config-generated/zone-mta/plugins/loop-breaker.toml
 sed -i "s/secret=\"secret value\"/secret=\"$SRS_SECRET\"/" ./config-generated/config-generated/zone-mta/plugins/wildduck.toml
 sed -i "s/secret=\"super secret key\"/secret=\"$DKIM_SECRET\"/" ./config-generated/config-generated/zone-mta/plugins/wildduck.toml
+sed -i "s|mongo = \".*\"|mongo = \"$MONGO_URL\"|" ./config-generated/config-generated/zone-mta/dbs-production.toml
 
 # Wildduck
 sed -i "s/#loopSecret=\"secret value\"/loopSecret=\"$SRS_SECRET\"/" ./config-generated/config-generated/wildduck/sender.toml
 sed -i "s/secret=\"super secret key\"/secret=\"$DKIM_SECRET\"/" ./config-generated/config-generated/wildduck/dkim.toml
 sed -i "s/accessToken=\"somesecretvalue\"/accessToken=\"$ACCESS_TOKEN\"/" ./config-generated/config-generated/wildduck/api.toml
 sed -i "s/secret=\"a secret cat\"/secret=\"$HMAC_SECRET\"/" ./config-generated/config-generated/wildduck/api.toml
+sed -i "s/rootUsername = \".*\"/rootUsername = \"$ROOT_USERNAME\"/" ./config-generated/config-generated/wildduck/api.toml
+sed -i "s|mongo = \".*\"|mongo = \"$MONGO_URL\"|" ./config-generated/config-generated/wildduck/dbs.toml
 
 # Apply CORS configuration
 echo "Applying CORS configuration to WildDuck API..."
@@ -293,10 +353,11 @@ sed -i "s/\"https:\/\/wildduck.email\"/\"https:\/\/$MAILDOMAIN\"/" ./config-gene
 # Haraka
 sed -i "s/#loopSecret: \"secret value\"/loopSecret: \"$SRS_SECRET\"/" ./config-generated/config-generated/haraka/wildduck.yaml
 sed -i "s/secret: \"secret value\"/secret: \"$SRS_SECRET\"/" ./config-generated/config-generated/haraka/wildduck.yaml
+sed -i "s|url: \".*\"|url: \"$MONGO_URL\"|" ./config-generated/config-generated/haraka/wildduck.yaml
 
-# Webmail
-sed -i "s|example\.com|$HOSTNAME|g" ./config-generated/config-generated/wildduck-webmail/default.toml
-sed -i "s|accessToken=\"\"|accessToken=\"$ACCESS_TOKEN\"|g" ./config-generated/config-generated/wildduck-webmail/default.toml
+# Mail Box Indexer - Set EMAIL_DOMAIN in docker-compose
+echo "Configuring Mail Box Indexer..."
+sed -i "s/EMAIL_DOMAIN:-0xmail.box/EMAIL_DOMAIN:-$MAILDOMAIN/g" ./config-generated/docker-compose.yml
 
 # Haraka certs from Traefik
 if ! $USE_SELF_SIGNED_CERTS; then
@@ -466,16 +527,5 @@ fi
 
 echo "Done!"
 
-if [ "$FULL_SETUP" != "full" ]; then 
-    read -p "Do you wish to continue and set up the DNS? [Y/n] " yn
-
-    case $yn in
-        [Yy]* ) FULL_SETUP="full";;
-        [Nn]* ) echo "$SERVICES setup finished! Exiting..."; exit;;
-        * ) FULL_SETUP="full";;
-    esac
-fi
-
-if [ "$FULL_SETUP" = "full" ]; then 
-    source "./setup-scripts/dns_setup.sh"
-fi
+# Always run DNS setup
+source "./setup-scripts/dns_setup.sh"
