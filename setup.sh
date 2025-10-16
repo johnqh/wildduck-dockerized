@@ -210,13 +210,11 @@ fi
 # Ensure config-generated directory exists
 mkdir -p config-generated
 
-# Copy default configuration files if they don't exist
-if [ ! -e ./config-generated/config-generated ]; then
-    echo "Copying default configuration into ./config-generated/config-generated"
-    cp -r ./default-config ./config-generated/config-generated
-else
-    echo "Configuration files already exist in ./config-generated/config-generated"
-fi
+# Always copy fresh configuration files to avoid corrupted state
+echo "Copying default configuration files..."
+rm -rf ./config-generated/config-generated
+cp -r ./default-config ./config-generated/config-generated
+echo "✓ Configuration files copied successfully"
 
 # SSL
 # source "./setup-scripts/ssl_setup.sh"
