@@ -465,18 +465,13 @@ echo "Generating secrets and placing them in $SERVICES configuration"
 # Source .env to get Doppler values
 source .env
 
-# Use Doppler values if available, otherwise generate randomly
+# Use Doppler values if available, otherwise generate randomly for Zone-MTA secrets
 SRS_SECRET=${WILDDUCK_SRS_SECRET:-$(head /dev/urandom | tr -dc A-Za-z0-9 | head -c30)}
 ZONEMTA_SECRET=${ZONEMTA_LOOP_SECRET:-$(head /dev/urandom | tr -dc A-Za-z0-9 | head -c30)}
 DKIM_SECRET=${WILDDUCK_DKIM_SECRET:-$(head /dev/urandom | tr -dc A-Za-z0-9 | head -c30)}
-ACCESS_TOKEN=${WILDDUCK_ACCESS_TOKEN:-$(head /dev/urandom | tr -dc A-Za-z0-9 | head -c30)}
-HMAC_SECRET=${WILDDUCK_HMAC_SECRET:-$(head /dev/urandom | tr -dc A-Za-z0-9 | head -c30)}
 
 # MongoDB URL - use Doppler value or default to Docker service
 MONGO_URL=${WILDDUCK_MONGO_URL:-mongodb://mongo:27017/wildduck}
-
-# WildDuck root username - use Doppler value or default to "admin"
-ROOT_USERNAME=${WILDDUCK_ROOT_USERNAME:-admin}
 
 # Zone-MTA
 sed -i "s/secret=\"super secret value\"/secret=\"$ZONEMTA_SECRET\"/" ./config-generated/config-generated/zone-mta/plugins/loop-breaker.toml
@@ -484,12 +479,44 @@ sed -i "s/secret=\"secret value\"/secret=\"$SRS_SECRET\"/" ./config-generated/co
 sed -i "s/secret=\"super secret key\"/secret=\"$DKIM_SECRET\"/" ./config-generated/config-generated/zone-mta/plugins/wildduck.toml
 sed -i "s|mongo = \".*\"|mongo = \"$MONGO_URL\"|" ./config-generated/config-generated/zone-mta/dbs-production.toml
 
-# Wildduck
+# Wildduck - sender and dkim
 sed -i "s/#loopSecret=\"secret value\"/loopSecret=\"$SRS_SECRET\"/" ./config-generated/config-generated/wildduck/sender.toml
 sed -i "s/secret=\"super secret key\"/secret=\"$DKIM_SECRET\"/" ./config-generated/config-generated/wildduck/dkim.toml
-sed -i "s/accessToken=\"somesecretvalue\"/accessToken=\"$ACCESS_TOKEN\"/" ./config-generated/config-generated/wildduck/api.toml
-sed -i "s/secret=\"a secret cat\"/secret=\"$HMAC_SECRET\"/" ./config-generated/config-generated/wildduck/api.toml
-sed -i "s/rootUsername = \".*\"/rootUsername = \"$ROOT_USERNAME\"/" ./config-generated/config-generated/wildduck/api.toml
+
+# Wildduck - api.toml: Copy from wildduck repo, then overwrite with Doppler values only if they exist
+echo "Configuring WildDuck API from source repo..."
+if [ -f "../wildduck/config/api.toml" ]; then
+    cp "../wildduck/config/api.toml" ./config-generated/config-generated/wildduck/api.toml
+    echo "✓ Copied api.toml from wildduck repo"
+
+    # Only apply Doppler values if they exist (don't generate random values)
+    if [ -n "$WILDDUCK_ACCESS_TOKEN" ]; then
+        echo "✓ Applying WILDDUCK_ACCESS_TOKEN from Doppler"
+        sed -i "s|# accessToken=\"somesecretvalue\"|accessToken=\"$WILDDUCK_ACCESS_TOKEN\"|" ./config-generated/config-generated/wildduck/api.toml
+        sed -i "s|accessToken=\"somesecretvalue\"|accessToken=\"$WILDDUCK_ACCESS_TOKEN\"|" ./config-generated/config-generated/wildduck/api.toml
+    fi
+
+    if [ -n "$WILDDUCK_HMAC_SECRET" ]; then
+        echo "✓ Applying WILDDUCK_HMAC_SECRET from Doppler"
+        sed -i "s|secret = \"a secret cat\"|secret = \"$WILDDUCK_HMAC_SECRET\"|" ./config-generated/config-generated/wildduck/api.toml
+    fi
+
+    if [ -n "$WILDDUCK_ROOT_USERNAME" ]; then
+        echo "✓ Applying WILDDUCK_ROOT_USERNAME from Doppler"
+        sed -i "s|rootUsername = \"admin\"|rootUsername = \"$WILDDUCK_ROOT_USERNAME\"|" ./config-generated/config-generated/wildduck/api.toml
+    fi
+
+    if [ -n "$WILDDUCK_ACCESSCONTROL_ENABLED" ]; then
+        echo "✓ Applying WILDDUCK_ACCESSCONTROL_ENABLED from Doppler"
+        sed -i "s|enabled = false|enabled = $WILDDUCK_ACCESSCONTROL_ENABLED|" ./config-generated/config-generated/wildduck/api.toml
+    fi
+
+    # Always set indexerBaseUrl to internal Docker service
+    sed -i "s|indexerBaseUrl = \".*\"|indexerBaseUrl = \"$INDEXER_BASE_URL\"|" ./config-generated/config-generated/wildduck/api.toml
+else
+    echo "Warning: ../wildduck/config/api.toml not found. Using default config."
+fi
+
 sed -i "s|mongo = \".*\"|mongo = \"$MONGO_URL\"|" ./config-generated/config-generated/wildduck/dbs.toml
 
 # Apply CORS configuration
