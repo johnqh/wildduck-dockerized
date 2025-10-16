@@ -44,7 +44,7 @@ services:
       wildduck_network:
         ipv4_address: 172.20.0.10
     healthcheck:
-      test: ["CMD", "sh", "-c", "nc -z 127.0.0.1 8080 || wget -q -O /dev/null http://127.0.0.1:8080/ 2>/dev/null"]
+      test: ["CMD", "wget", "--quiet", "--tries=1", "--spider", "http://127.0.0.1:8080/health"]
       interval: 30s
       timeout: 10s
       retries: 3
