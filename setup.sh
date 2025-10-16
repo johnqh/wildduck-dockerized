@@ -56,68 +56,57 @@ echo "INDEXER_BASE_URL has been set to: $INDEXER_BASE_URL"
 # Doppler Integration for WildDuck Secrets
 echo ""
 echo "--- WildDuck Secrets Configuration ---"
-echo "Do you want to use Doppler for WildDuck secrets (MongoDB URL, API tokens, etc.)?"
+echo "Enter your Doppler service token for WildDuck."
+echo "(This will download MongoDB URL and other WildDuck secrets from Doppler)"
 echo ""
-read -p "Use Doppler for WildDuck secrets? [Y/n] " USE_DOPPLER
+read -p "Doppler service token: " DOPPLER_TOKEN
 
-case $USE_DOPPLER in
-    [Nn]* )
-        echo "Skipping Doppler integration for WildDuck secrets."
-        ;;
-    * )
-        echo "Enter your Doppler service token for WildDuck."
-        echo "(This will download MongoDB URL and other WildDuck secrets from Doppler)"
-        echo ""
-        read -p "Doppler service token: " DOPPLER_TOKEN
+if [ -z "$DOPPLER_TOKEN" ]; then
+    echo "Error: Doppler token cannot be empty"
+    exit 1
+fi
 
-        if [ -z "$DOPPLER_TOKEN" ]; then
-            echo "Error: Doppler token cannot be empty"
-            exit 1
-        fi
+echo "Downloading environment variables from Doppler..."
 
-        echo "Downloading environment variables from Doppler..."
+# Download from Doppler to a temporary file
+DOPPLER_ENV_FILE=".env.doppler"
+HTTP_CODE=$(curl -u "$DOPPLER_TOKEN:" \
+    -w "%{http_code}" \
+    -o "$DOPPLER_ENV_FILE" \
+    -s \
+    https://api.doppler.com/v3/configs/config/secrets/download?format=env)
 
-        # Download from Doppler to a temporary file
-        DOPPLER_ENV_FILE=".env.doppler"
-        HTTP_CODE=$(curl -u "$DOPPLER_TOKEN:" \
-            -w "%{http_code}" \
-            -o "$DOPPLER_ENV_FILE" \
-            -s \
-            https://api.doppler.com/v3/configs/config/secrets/download?format=env)
+if [ "$HTTP_CODE" -eq 200 ]; then
+    echo "✓ Successfully downloaded secrets from Doppler"
 
-        if [ "$HTTP_CODE" -eq 200 ]; then
-            echo "✓ Successfully downloaded secrets from Doppler"
+    # If .env exists, merge with Doppler taking precedence
+    if [ -f .env ]; then
+        echo "Merging Doppler secrets with existing .env file..."
+        # Backup existing .env
+        cp .env .env.backup
 
-            # If .env exists, merge with Doppler taking precedence
-            if [ -f .env ]; then
-                echo "Merging Doppler secrets with existing .env file..."
-                # Backup existing .env
-                cp .env .env.backup
+        # Merge: Keep existing .env, then overwrite with Doppler values
+        cat .env.backup "$DOPPLER_ENV_FILE" | \
+            awk -F= '!seen[$1]++ || /^[A-Z_]+=/' > .env.temp
+        mv .env.temp .env
 
-                # Merge: Keep existing .env, then overwrite with Doppler values
-                cat .env.backup "$DOPPLER_ENV_FILE" | \
-                    awk -F= '!seen[$1]++ || /^[A-Z_]+=/' > .env.temp
-                mv .env.temp .env
+        echo "✓ Merged Doppler secrets (Doppler values take precedence)"
+    else
+        # No existing .env, just use Doppler file
+        mv "$DOPPLER_ENV_FILE" .env
+        echo "✓ Created .env from Doppler secrets"
+    fi
 
-                echo "✓ Merged Doppler secrets (Doppler values take precedence)"
-            else
-                # No existing .env, just use Doppler file
-                mv "$DOPPLER_ENV_FILE" .env
-                echo "✓ Created .env from Doppler secrets"
-            fi
+    # Clean up
+    rm -f "$DOPPLER_ENV_FILE" .env.backup
 
-            # Clean up
-            rm -f "$DOPPLER_ENV_FILE" .env.backup
-
-            echo "✓ WildDuck secrets configured from Doppler"
-        else
-            echo "Error: Failed to download from Doppler (HTTP $HTTP_CODE)"
-            echo "Please check your service token and try again"
-            rm -f "$DOPPLER_ENV_FILE"
-            exit 1
-        fi
-        ;;
-esac
+    echo "✓ WildDuck secrets configured from Doppler"
+else
+    echo "Error: Failed to download from Doppler (HTTP $HTTP_CODE)"
+    echo "Please check your service token and try again"
+    rm -f "$DOPPLER_ENV_FILE"
+    exit 1
+fi
 
 # Update INDEXER_BASE_URL in .env
 if grep -q "^INDEXER_BASE_URL=" .env; then
