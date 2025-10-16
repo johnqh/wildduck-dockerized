@@ -465,10 +465,12 @@ echo "Generating secrets and placing them in $SERVICES configuration"
 # Source .env to get Doppler values
 source .env
 
-# Use Doppler values if available, otherwise generate randomly for Zone-MTA secrets
+# Use Doppler values if available, otherwise generate randomly
+# These secrets are needed for inter-service communication
 SRS_SECRET=${WILDDUCK_SRS_SECRET:-$(head /dev/urandom | tr -dc A-Za-z0-9 | head -c30)}
 ZONEMTA_SECRET=${ZONEMTA_LOOP_SECRET:-$(head /dev/urandom | tr -dc A-Za-z0-9 | head -c30)}
 DKIM_SECRET=${WILDDUCK_DKIM_SECRET:-$(head /dev/urandom | tr -dc A-Za-z0-9 | head -c30)}
+HMAC_SECRET=${WILDDUCK_HMAC_SECRET:-$(head /dev/urandom | tr -dc A-Za-z0-9 | head -c30)}
 
 # MongoDB URL - use Doppler value or default to Docker service
 MONGO_URL=${WILDDUCK_MONGO_URL:-mongodb://mongo:27017/wildduck}
@@ -483,22 +485,24 @@ sed -i "s|mongo = \".*\"|mongo = \"$MONGO_URL\"|" ./config-generated/config-gene
 sed -i "s/#loopSecret=\"secret value\"/loopSecret=\"$SRS_SECRET\"/" ./config-generated/config-generated/wildduck/sender.toml
 sed -i "s/secret=\"super secret key\"/secret=\"$DKIM_SECRET\"/" ./config-generated/config-generated/wildduck/dkim.toml
 
-# Wildduck - api.toml: Copy from wildduck repo, then overwrite with Doppler values only if they exist
+# Wildduck - api.toml: Copy from wildduck repo, then apply necessary configurations
 echo "Configuring WildDuck API from source repo..."
 if [ -f "../wildduck/config/api.toml" ]; then
     cp "../wildduck/config/api.toml" ./config-generated/config-generated/wildduck/api.toml
     echo "✓ Copied api.toml from wildduck repo"
 
-    # Only apply Doppler values if they exist (don't generate random values)
+    # Always apply HMAC secret (needed for inter-service communication)
+    echo "✓ Applying HMAC secret for accessControl"
+    sed -i "s|secret = \"a secret cat\"|secret = \"$HMAC_SECRET\"|" ./config-generated/config-generated/wildduck/api.toml
+
+    # Always set indexerBaseUrl to internal Docker service
+    sed -i "s|indexerBaseUrl = \".*\"|indexerBaseUrl = \"$INDEXER_BASE_URL\"|" ./config-generated/config-generated/wildduck/api.toml
+
+    # Apply optional Doppler overrides if they exist
     if [ -n "$WILDDUCK_ACCESS_TOKEN" ]; then
         echo "✓ Applying WILDDUCK_ACCESS_TOKEN from Doppler"
         sed -i "s|# accessToken=\"somesecretvalue\"|accessToken=\"$WILDDUCK_ACCESS_TOKEN\"|" ./config-generated/config-generated/wildduck/api.toml
         sed -i "s|accessToken=\"somesecretvalue\"|accessToken=\"$WILDDUCK_ACCESS_TOKEN\"|" ./config-generated/config-generated/wildduck/api.toml
-    fi
-
-    if [ -n "$WILDDUCK_HMAC_SECRET" ]; then
-        echo "✓ Applying WILDDUCK_HMAC_SECRET from Doppler"
-        sed -i "s|secret = \"a secret cat\"|secret = \"$WILDDUCK_HMAC_SECRET\"|" ./config-generated/config-generated/wildduck/api.toml
     fi
 
     if [ -n "$WILDDUCK_ROOT_USERNAME" ]; then
@@ -510,9 +514,6 @@ if [ -f "../wildduck/config/api.toml" ]; then
         echo "✓ Applying WILDDUCK_ACCESSCONTROL_ENABLED from Doppler"
         sed -i "s|enabled = false|enabled = $WILDDUCK_ACCESSCONTROL_ENABLED|" ./config-generated/config-generated/wildduck/api.toml
     fi
-
-    # Always set indexerBaseUrl to internal Docker service
-    sed -i "s|indexerBaseUrl = \".*\"|indexerBaseUrl = \"$INDEXER_BASE_URL\"|" ./config-generated/config-generated/wildduck/api.toml
 else
     echo "Warning: ../wildduck/config/api.toml not found. Using default config."
 fi
