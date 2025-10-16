@@ -303,6 +303,56 @@ else
     fi
 fi
 
+# PostgreSQL
+# Check if remote PostgreSQL is configured in Doppler
+if [ -n "$POSTGRES_URL" ]; then
+    echo "Using PostgreSQL URL from Doppler: $POSTGRES_URL"
+    # Check if it's a local or remote PostgreSQL based on the URL
+    if [[ "$POSTGRES_URL" == *"postgres:5432"* ]] || [[ "$POSTGRES_URL" == *"localhost"* ]] || [[ "$POSTGRES_URL" == *"127.0.0.1"* ]]; then
+        echo "Detected local PostgreSQL configuration"
+    else
+        echo "Detected remote PostgreSQL configuration"
+        DOCKER_COMPOSE_FILE="./config-generated/docker-compose.yml"
+        if [ -f "${DOCKER_COMPOSE_FILE}" ]; then
+            echo "Commenting out local PostgreSQL service from ${DOCKER_COMPOSE_FILE}..."
+            sed -i -e '
+            /^[[:space:]]\{2\}postgres:$/ {
+                s/^/#/;
+                :postgres_service_loop
+                n;
+                /^[[:space:]]\{4\}/ {
+                    s/^/#/;
+                    b postgres_service_loop;
+                }
+            }' "${DOCKER_COMPOSE_FILE}"
+
+            echo "Commenting out local PostgreSQL volume from ${DOCKER_COMPOSE_FILE}..."
+            sed -i -e '
+            /^[[:space:]]*volumes:$/,/^[^[:space:]]/ {
+                /^[[:space:]]\{2\}postgres:$/s/^/#/;
+            }' "${DOCKER_COMPOSE_FILE}"
+
+            echo "Removing postgres dependencies from services in ${DOCKER_COMPOSE_FILE}..."
+            # Remove postgres: and its condition from depends_on blocks
+            sed -i -e '
+            /^[[:space:]]\{4\}depends_on:$/,/^[[:space:]]\{0,4\}[a-z]/ {
+                /^[[:space:]]\{6\}postgres:$/,/^[[:space:]]\{8\}condition:/ {
+                    /^[[:space:]]\{6\}postgres:$/d;
+                    /^[[:space:]]\{8\}condition:/d;
+                }
+            }' "${DOCKER_COMPOSE_FILE}"
+
+            # Update DATABASE_URL environment variable in mail_box_indexer
+            echo "Updating DATABASE_URL in mail_box_indexer service..."
+            sed -i "s|DATABASE_URL=postgresql://ponder:password@postgres:5432/mail_box_indexer|DATABASE_URL=${POSTGRES_URL}|g" "${DOCKER_COMPOSE_FILE}"
+
+            echo "✓ Configured docker-compose for remote PostgreSQL"
+        fi
+    fi
+else
+    echo "No remote PostgreSQL URL found in Doppler. Using local PostgreSQL container."
+fi
+
 # Certs for traefik
 USE_SELF_SIGNED_CERTS=false
 read -p "Do you wish to set up self-signed certs for development? (y/N) " yn
