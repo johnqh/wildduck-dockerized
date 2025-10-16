@@ -251,7 +251,7 @@ sudo docker stop $(sudo docker ps -q --filter "name=^/config-generated")
 # Traefik
 echo "Copying Traefik config and replacing default configuration"
 cp -r ./dynamic_conf ./config-generated
-sed -i "s|\./config/|./config-generated/config-generated/|g" ./config-generated/docker-compose.yml
+sed -i "s|\./config/|./config-generated/|g" ./config-generated/docker-compose.yml
 sed -i "s|HOSTNAME|$HOSTNAME|g" ./config-generated/docker-compose.yml
 
 
