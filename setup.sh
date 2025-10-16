@@ -53,66 +53,128 @@ fi
 
 echo "INDEXER_BASE_URL has been set to: $INDEXER_BASE_URL"
 
-# Doppler Integration for Indexer Environment Variables
+# Doppler Integration for WildDuck Secrets
 echo ""
-echo "--- Indexer Environment Variables ---"
-echo "Enter your Doppler service token for the Mail Box Indexer."
-echo "(This will download all indexer secrets from Doppler)"
+echo "--- WildDuck Secrets Configuration ---"
+echo "Do you want to use Doppler for WildDuck secrets (MongoDB URL, API tokens, etc.)?"
 echo ""
-read -p "Doppler service token for Indexer: " DOPPLER_TOKEN
+read -p "Use Doppler for WildDuck secrets? [Y/n] " USE_DOPPLER
 
-if [ -z "$DOPPLER_TOKEN" ]; then
-    echo "Error: Doppler token cannot be empty"
-    exit 1
+case $USE_DOPPLER in
+    [Nn]* )
+        echo "Skipping Doppler integration for WildDuck secrets."
+        ;;
+    * )
+        echo "Enter your Doppler service token for WildDuck."
+        echo "(This will download MongoDB URL and other WildDuck secrets from Doppler)"
+        echo ""
+        read -p "Doppler service token: " DOPPLER_TOKEN
+
+        if [ -z "$DOPPLER_TOKEN" ]; then
+            echo "Error: Doppler token cannot be empty"
+            exit 1
+        fi
+
+        echo "Downloading environment variables from Doppler..."
+
+        # Download from Doppler to a temporary file
+        DOPPLER_ENV_FILE=".env.doppler"
+        HTTP_CODE=$(curl -u "$DOPPLER_TOKEN:" \
+            -w "%{http_code}" \
+            -o "$DOPPLER_ENV_FILE" \
+            -s \
+            https://api.doppler.com/v3/configs/config/secrets/download?format=env)
+
+        if [ "$HTTP_CODE" -eq 200 ]; then
+            echo "✓ Successfully downloaded secrets from Doppler"
+
+            # If .env exists, merge with Doppler taking precedence
+            if [ -f .env ]; then
+                echo "Merging Doppler secrets with existing .env file..."
+                # Backup existing .env
+                cp .env .env.backup
+
+                # Merge: Keep existing .env, then overwrite with Doppler values
+                cat .env.backup "$DOPPLER_ENV_FILE" | \
+                    awk -F= '!seen[$1]++ || /^[A-Z_]+=/' > .env.temp
+                mv .env.temp .env
+
+                echo "✓ Merged Doppler secrets (Doppler values take precedence)"
+            else
+                # No existing .env, just use Doppler file
+                mv "$DOPPLER_ENV_FILE" .env
+                echo "✓ Created .env from Doppler secrets"
+            fi
+
+            # Clean up
+            rm -f "$DOPPLER_ENV_FILE" .env.backup
+
+            echo "✓ WildDuck secrets configured from Doppler"
+        else
+            echo "Error: Failed to download from Doppler (HTTP $HTTP_CODE)"
+            echo "Please check your service token and try again"
+            rm -f "$DOPPLER_ENV_FILE"
+            exit 1
+        fi
+        ;;
+esac
+
+# Update INDEXER_BASE_URL in .env
+if grep -q "^INDEXER_BASE_URL=" .env; then
+    sed -i "s|^INDEXER_BASE_URL=.*|INDEXER_BASE_URL=$INDEXER_BASE_URL|" .env
+else
+    echo "INDEXER_BASE_URL=$INDEXER_BASE_URL" >> .env
 fi
 
-echo "Downloading environment variables from Doppler..."
+# Source .env to check what we have
+source .env
 
-# Download from Doppler to a temporary file
-DOPPLER_ENV_FILE=".env.doppler"
-HTTP_CODE=$(curl -u "$DOPPLER_TOKEN:" \
-    -w "%{http_code}" \
-    -o "$DOPPLER_ENV_FILE" \
-    -s \
-    https://api.doppler.com/v3/configs/config/secrets/download?format=env)
+# Prompt for Indexer Environment Variables only if not provided by Doppler
+echo ""
+echo "--- Mail Box Indexer Configuration ---"
 
-if [ "$HTTP_CODE" -eq 200 ]; then
-    echo "✓ Successfully downloaded secrets from Doppler"
-
-    # If .env exists, merge with Doppler taking precedence
-    if [ -f .env ]; then
-        echo "Merging Doppler secrets with existing .env file..."
-        # Backup existing .env
-        cp .env .env.backup
-
-        # Merge: Keep existing .env, then overwrite with Doppler values
-        cat .env.backup "$DOPPLER_ENV_FILE" | \
-            awk -F= '!seen[$1]++ || /^[A-Z_]+=/' > .env.temp
-        mv .env.temp .env
-
-        echo "✓ Merged Doppler secrets (Doppler values take precedence)"
-    else
-        # No existing .env, just use Doppler file
-        mv "$DOPPLER_ENV_FILE" .env
-        echo "✓ Created .env from Doppler secrets"
-    fi
-
-    # Clean up
-    rm -f "$DOPPLER_ENV_FILE" .env.backup
-
-    # Update INDEXER_BASE_URL in the merged file
-    if grep -q "^INDEXER_BASE_URL=" .env; then
-        sed -i "s|^INDEXER_BASE_URL=.*|INDEXER_BASE_URL=$INDEXER_BASE_URL|" .env
-    else
-        echo "INDEXER_BASE_URL=$INDEXER_BASE_URL" >> .env
-    fi
-
-    echo "✓ Environment variables configured"
+if [ -n "$INDEXER_PRIVATE_KEY" ] && [ -n "$INDEXER_WALLET_ADDRESS" ]; then
+    echo "✓ Using indexer credentials from Doppler"
 else
-    echo "Error: Failed to download from Doppler (HTTP $HTTP_CODE)"
-    echo "Please check your service token and try again"
-    rm -f "$DOPPLER_ENV_FILE"
-    exit 1
+    echo "The Mail Box Indexer requires blockchain wallet credentials."
+    echo "These will be stored in the .env file."
+    echo ""
+
+    if [ -z "$INDEXER_PRIVATE_KEY" ]; then
+        read -p "Enter Indexer Private Key: " INDEXER_PRIVATE_KEY
+        if [ -z "$INDEXER_PRIVATE_KEY" ]; then
+            echo "Error: Indexer private key cannot be empty"
+            exit 1
+        fi
+
+        # Add/update indexer private key in .env
+        if grep -q "^INDEXER_PRIVATE_KEY=" .env; then
+            sed -i "s|^INDEXER_PRIVATE_KEY=.*|INDEXER_PRIVATE_KEY=$INDEXER_PRIVATE_KEY|" .env
+        else
+            echo "INDEXER_PRIVATE_KEY=$INDEXER_PRIVATE_KEY" >> .env
+        fi
+    else
+        echo "✓ Using INDEXER_PRIVATE_KEY from Doppler"
+    fi
+
+    if [ -z "$INDEXER_WALLET_ADDRESS" ]; then
+        read -p "Enter Indexer Wallet Address: " INDEXER_WALLET_ADDRESS
+        if [ -z "$INDEXER_WALLET_ADDRESS" ]; then
+            echo "Error: Indexer wallet address cannot be empty"
+            exit 1
+        fi
+
+        # Add/update indexer wallet address in .env
+        if grep -q "^INDEXER_WALLET_ADDRESS=" .env; then
+            sed -i "s|^INDEXER_WALLET_ADDRESS=.*|INDEXER_WALLET_ADDRESS=$INDEXER_WALLET_ADDRESS|" .env
+        else
+            echo "INDEXER_WALLET_ADDRESS=$INDEXER_WALLET_ADDRESS" >> .env
+        fi
+    else
+        echo "✓ Using INDEXER_WALLET_ADDRESS from Doppler"
+    fi
+
+    echo "✓ Indexer configuration saved"
 fi
 
 # CORS Configuration
@@ -189,7 +251,51 @@ sed -i "s|HOSTNAME|$HOSTNAME|g" ./config-generated/docker-compose.yml
 
 
 # Mongo
-source "./setup-scripts/mongo.sh"
+# Only prompt for MongoDB configuration if not provided by Doppler
+if [ -z "$WILDDUCK_MONGO_URL" ]; then
+    echo "MongoDB URL not found in Doppler. Prompting for configuration..."
+    source "./setup-scripts/mongo.sh"
+else
+    echo "Using MongoDB URL from Doppler: $WILDDUCK_MONGO_URL"
+    # Check if it's a local or remote MongoDB based on the URL
+    if [[ "$WILDDUCK_MONGO_URL" == *"mongo:27017"* ]] || [[ "$WILDDUCK_MONGO_URL" == *"localhost"* ]] || [[ "$WILDDUCK_MONGO_URL" == *"127.0.0.1"* ]]; then
+        echo "Detected local MongoDB configuration"
+    else
+        echo "Detected remote MongoDB configuration"
+        # Comment out local MongoDB service from docker-compose
+        DOCKER_COMPOSE_FILE="./config-generated/docker-compose.yml"
+        if [ -f "${DOCKER_COMPOSE_FILE}" ]; then
+            echo "Commenting out local MongoDB service from ${DOCKER_COMPOSE_FILE}..."
+            sed -i -e '
+            /^[[:space:]]\{2\}mongo:$/ {
+                s/^/#/;
+                :mongo_service_loop
+                n;
+                /^[[:space:]]\{4\}/ {
+                    s/^/#/;
+                    b mongo_service_loop;
+                }
+            }' "${DOCKER_COMPOSE_FILE}"
+
+            echo "Commenting out local MongoDB volume from ${DOCKER_COMPOSE_FILE}..."
+            sed -i -e '
+            /^[[:space:]]*volumes:$/,/^[^[:space:]]/ {
+                /^[[:space:]]\{2\}mongo:$/s/^/#/;
+            }' "${DOCKER_COMPOSE_FILE}"
+
+            echo "Commenting out only '- mongo' lines within 'depends_on' blocks in ${DOCKER_COMPOSE_FILE}..."
+            sed -i -e '
+            /^[[:space:]]\{4\}depends_on:$/ {
+                n;
+                /^[[:space:]]\{6\}-\s*mongo$/ {
+                    s/^/#/;
+                }
+            }' "${DOCKER_COMPOSE_FILE}"
+
+            echo "✓ Configured docker-compose for remote MongoDB"
+        fi
+    fi
+fi
 
 # Certs for traefik
 USE_SELF_SIGNED_CERTS=false
