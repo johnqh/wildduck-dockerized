@@ -389,6 +389,9 @@ EOF
     openssl x509 -req -in ./config-generated/certs/$HOSTNAME.csr -CA ./config-generated/certs/rootCA.pem -CAkey ./config-generated/certs/rootCA.key -CAcreateserial -out ./config-generated/certs/$HOSTNAME.crt -days 825 -sha256 -extfile ./config-generated/certs/$HOSTNAME.ext
     mv ./config-generated/certs/$HOSTNAME.crt ./config-generated/certs/$HOSTNAME.pem
     mv ./config-generated/certs/$HOSTNAME.key ./config-generated/certs/$HOSTNAME-key.pem
+
+    # Ensure Traefik's static config points at the generated certificate files
+    sed -i "s/wildduck.dockerized.test/$HOSTNAME/g" ./config-generated/dynamic_conf/dynamic.yml
 fi
 
 # Haraka certs settings
@@ -480,6 +483,11 @@ sed -i "s/secret=\"super secret value\"/secret=\"$ZONEMTA_SECRET\"/" ./config-ge
 sed -i "s/secret=\"secret value\"/secret=\"$SRS_SECRET\"/" ./config-generated/config-generated/zone-mta/plugins/wildduck.toml
 sed -i "s/secret=\"super secret key\"/secret=\"$DKIM_SECRET\"/" ./config-generated/config-generated/zone-mta/plugins/wildduck.toml
 sed -i "s|mongo = \".*\"|mongo = \"$MONGO_URL\"|" ./config-generated/config-generated/zone-mta/dbs-production.toml
+
+# ZoneMTA should use the same database name as WildDuck, not a separate "zone-mta" database
+# Extract database name from MONGO_URL (get the part after the last /)
+DB_NAME=$(echo "$MONGO_URL" | sed 's/.*\///')
+sed -i "s|sender = \"zone-mta\"|sender = \"$DB_NAME\"|" ./config-generated/config-generated/zone-mta/dbs-production.toml
 
 # Wildduck - sender and dkim
 sed -i "s/#loopSecret=\"secret value\"/loopSecret=\"$SRS_SECRET\"/" ./config-generated/config-generated/wildduck/sender.toml
@@ -603,22 +611,59 @@ if ! $USE_SELF_SIGNED_CERTS; then
         exit 1
     fi
     
-    mkdir ./config-generated/certs/
+    mkdir -p ./config-generated/certs/
     CERT_FILE="./config-generated/certs/$HOSTNAME.pem"
     KEY_FILE="./config-generated/certs/$HOSTNAME-key.pem"
 
 
     # Extract the certificate
     CERT=$(sudo jq -r --arg domain "$HOSTNAME" '.letsencrypt.Certificates[] | select(.domain.main == $domain) | .certificate' acme.json)
-    
+
     # Extract the private key
     KEY=$(sudo jq -r --arg domain "$HOSTNAME" '.letsencrypt.Certificates[] | select(.domain.main == $domain) | .key' acme.json)
+
+    # Validate certificate and key were extracted
+    if [ -z "$CERT" ] || [ "$CERT" = "null" ]; then
+        echo "Error: Could not extract certificate for $HOSTNAME from acme.json"
+        exit 1
+    fi
+
+    if [ -z "$KEY" ] || [ "$KEY" = "null" ]; then
+        echo "Error: Could not extract private key for $HOSTNAME from acme.json"
+        exit 1
+    fi
+
+    # Remove any existing certificate directories (cleanup from failed runs)
+    if [ -d "$CERT_FILE" ]; then
+        echo "Removing certificate directory (from failed previous run)"
+        sudo rm -rf "$CERT_FILE"
+    fi
+    if [ -d "$KEY_FILE" ]; then
+        echo "Removing key directory (from failed previous run)"
+        sudo rm -rf "$KEY_FILE"
+    fi
 
     # Decode and save certificate
     echo "$CERT" | base64 -d > "$CERT_FILE"
 
     # Decode and save private key
     echo "$KEY" | base64 -d > "$KEY_FILE"
+
+    # Verify files were created successfully
+    if [ ! -f "$CERT_FILE" ] || [ ! -s "$CERT_FILE" ]; then
+        echo "Error: Certificate file was not created properly"
+        exit 1
+    fi
+
+    if [ ! -f "$KEY_FILE" ] || [ ! -s "$KEY_FILE" ]; then
+        echo "Error: Key file was not created properly"
+        exit 1
+    fi
+
+    echo "✓ Successfully created certificate files"
+
+    # Update Traefik dynamic configuration to point at the generated certs
+    sed -i "s/wildduck.dockerized.test/$HOSTNAME/g" ./config-generated/dynamic_conf/dynamic.yml
 
     cd ./config-generated/ 
     sudo docker compose down
@@ -696,11 +741,32 @@ fi
 # Create directory if it doesn't exist
 mkdir -p "$(dirname "$CERT_FILE")"
 
+# Remove any existing certificate directories (cleanup from failed runs)
+if [ -d "$CERT_FILE" ]; then
+    echo "Removing certificate directory (from failed previous run)"
+    sudo rm -rf "$CERT_FILE"
+fi
+if [ -d "$KEY_FILE" ]; then
+    echo "Removing key directory (from failed previous run)"
+    sudo rm -rf "$KEY_FILE"
+fi
+
 # Decode and save certificate
 echo "$CERT" | base64 -d > "$CERT_FILE"
 
 # Decode and save private key
 echo "$KEY" | base64 -d > "$KEY_FILE"
+
+# Verify files were created successfully
+if [ ! -f "$CERT_FILE" ] || [ ! -s "$CERT_FILE" ]; then
+    echo "Error: Certificate file was not created properly"
+    exit 1
+fi
+
+if [ ! -f "$KEY_FILE" ] || [ ! -s "$KEY_FILE" ]; then
+    echo "Error: Key file was not created properly"
+    exit 1
+fi
 
 echo "Certificate and key updated successfully at $(date)"
 
