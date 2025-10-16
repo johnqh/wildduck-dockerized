@@ -284,13 +284,18 @@ else
             }' "${DOCKER_COMPOSE_FILE}"
 
             echo "Removing mongo dependencies from services in ${DOCKER_COMPOSE_FILE}..."
-            # Remove mongo: and its condition from depends_on blocks
+            # Remove mongo: and its condition from depends_on blocks (new format with health checks)
             sed -i -e '
             /^[[:space:]]\{4\}depends_on:$/,/^[[:space:]]\{0,4\}[a-z]/ {
                 /^[[:space:]]\{6\}mongo:$/,/^[[:space:]]\{8\}condition:/ {
                     /^[[:space:]]\{6\}mongo:$/d;
                     /^[[:space:]]\{8\}condition:/d;
                 }
+            }' "${DOCKER_COMPOSE_FILE}"
+
+            # Also remove "- mongo" format (old format without health checks)
+            sed -i -e '/^[[:space:]]*depends_on:/,/^[[:space:]]*[a-z_-]*:/ {
+                /^[[:space:]]*-[[:space:]]*mongo$/d
             }' "${DOCKER_COMPOSE_FILE}"
 
             echo "✓ Configured docker-compose for remote MongoDB"
