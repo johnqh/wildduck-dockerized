@@ -566,101 +566,140 @@ sed -i "s/EMAIL_DOMAIN:-0xmail.box/EMAIL_DOMAIN:-$MAILDOMAIN/g" ./config-generat
 if ! $USE_SELF_SIGNED_CERTS; then
     echo "Getting certs for Haraka from Traefik"
 
-    CURRENT_DIR=$(basename "$(pwd)")
-    if [ -f "docker-compose.yml" ] && [ "$CURRENT_DIR" = "config-generated" ]; then
-        sudo docker compose up traefik wildduck -d 
-        cd ../
-    else
-        cd ./config-generated/ 
-        sudo docker compose up traefik wildduck -d
-        cd ../
+    CERT_READY=false
+
+    # Check if acme.json already exists with valid certificates
+    if [ -f "./acme.json" ]; then
+        echo "Found existing acme.json, checking for certificate..."
+        if jq -e --arg domain "$HOSTNAME" '.letsencrypt.Certificates[] | select(.domain.main == $domain)' ./acme.json >/dev/null 2>&1; then
+            CERT_READY=true
+            echo "✓ Certificate for $HOSTNAME already exists in acme.json"
+        else
+            echo "No certificate found in existing acme.json, will try to obtain new one"
+        fi
     fi
 
-    echo "Waiting for Traefik to obtain certificate for $HOSTNAME..."
-    # Poll the acme.json until the cert appears or timeout
-    echo "Waiting for container to start..."
-    sleep 2 # Just in case
-
-    TIMEOUT=120 #increased timeout for cert acquisition
-    INTERVAL=5
-    ELAPSED=0
-    CERT_READY=false
-    
-
-    while [ $ELAPSED -lt $TIMEOUT ]; do
-      CONTAINER_ID=$(sudo docker ps --filter "name=traefik" --format "{{.ID}}")
-
-      # Copy acme.json from inside the container
-      sudo docker cp $CONTAINER_ID:/data/acme.json ./acme.json 2>/dev/null
-      sudo chmod a+r ./acme.json
-
-      # Check if the cert exists in acme.json
-      if jq -e --arg domain "$HOSTNAME" '.letsencrypt.Certificates[] | select(.domain.main == $domain)' ./acme.json >/dev/null; then
-          CERT_READY=true
-          echo "Certificate found for $HOSTNAME."
-          break
-      fi
-
-      echo "Waiting... ($ELAPSED/${TIMEOUT}s)"
-      sleep $INTERVAL
-      ELAPSED=$((ELAPSED + INTERVAL))
-    done
-
+    # Only start Traefik and wait if we don't have a certificate yet
     if [ "$CERT_READY" = false ]; then
-        echo "Error: Certificate for $HOSTNAME not found in acme.json after $TIMEOUT seconds."
-        exit 1
+        CURRENT_DIR=$(basename "$(pwd)")
+        if [ -f "docker-compose.yml" ] && [ "$CURRENT_DIR" = "config-generated" ]; then
+            sudo docker compose up traefik wildduck -d
+            cd ../
+        else
+            cd ./config-generated/
+            sudo docker compose up traefik wildduck -d
+            cd ../
+        fi
+
+        echo "Waiting for Traefik to obtain certificate for $HOSTNAME..."
+        # Poll the acme.json until the cert appears or timeout
+        echo "Waiting for container to start..."
+        sleep 2 # Just in case
+
+        TIMEOUT=120 #increased timeout for cert acquisition
+        INTERVAL=5
+        ELAPSED=0
+
+        while [ $ELAPSED -lt $TIMEOUT ]; do
+          CONTAINER_ID=$(sudo docker ps --filter "name=traefik" --format "{{.ID}}")
+
+          # Copy acme.json from inside the container
+          sudo docker cp $CONTAINER_ID:/data/acme.json ./acme.json 2>/dev/null
+          sudo chmod a+r ./acme.json
+
+          # Check if the cert exists in acme.json
+          if jq -e --arg domain "$HOSTNAME" '.letsencrypt.Certificates[] | select(.domain.main == $domain)' ./acme.json >/dev/null 2>&1; then
+              CERT_READY=true
+              echo "Certificate found for $HOSTNAME."
+              break
+          fi
+
+          echo "Waiting... ($ELAPSED/${TIMEOUT}s)"
+          sleep $INTERVAL
+          ELAPSED=$((ELAPSED + INTERVAL))
+        done
+
+        if [ "$CERT_READY" = false ]; then
+            echo "⚠ Warning: Certificate for $HOSTNAME not found in acme.json after $TIMEOUT seconds."
+            echo "This may be due to Let's Encrypt rate limiting or connectivity issues."
+            echo "Setup will continue, but Haraka may fail to start without certificates."
+            echo ""
+            echo "You can:"
+            echo "  1. Wait for rate limit to expire and re-run setup.sh"
+            echo "  2. Manually extract certificates later when available"
+            echo "  3. Continue with setup for now and fix certificates later"
+            echo ""
+            read -p "Continue anyway? [Y/n] " CONTINUE_ANYWAY
+            case $CONTINUE_ANYWAY in
+                [Nn]* )
+                    echo "Setup aborted. Please resolve certificate issues and try again."
+                    exit 1
+                    ;;
+                * )
+                    echo "Continuing setup without certificates..."
+                    ;;
+            esac
+        fi
     fi
     
     mkdir -p ./config-generated/certs/
     CERT_FILE="./config-generated/certs/$HOSTNAME.pem"
     KEY_FILE="./config-generated/certs/$HOSTNAME-key.pem"
 
+    # Only extract certificates if they're available
+    if [ "$CERT_READY" = true ]; then
+        echo "Extracting certificates from acme.json..."
 
-    # Extract the certificate
-    CERT=$(sudo jq -r --arg domain "$HOSTNAME" '.letsencrypt.Certificates[] | select(.domain.main == $domain) | .certificate' acme.json)
+        # Extract the certificate
+        CERT=$(sudo jq -r --arg domain "$HOSTNAME" '.letsencrypt.Certificates[] | select(.domain.main == $domain) | .certificate' acme.json)
 
-    # Extract the private key
-    KEY=$(sudo jq -r --arg domain "$HOSTNAME" '.letsencrypt.Certificates[] | select(.domain.main == $domain) | .key' acme.json)
+        # Extract the private key
+        KEY=$(sudo jq -r --arg domain "$HOSTNAME" '.letsencrypt.Certificates[] | select(.domain.main == $domain) | .key' acme.json)
 
-    # Validate certificate and key were extracted
-    if [ -z "$CERT" ] || [ "$CERT" = "null" ]; then
-        echo "Error: Could not extract certificate for $HOSTNAME from acme.json"
-        exit 1
+        # Validate certificate and key were extracted
+        if [ -z "$CERT" ] || [ "$CERT" = "null" ]; then
+            echo "⚠ Warning: Could not extract certificate for $HOSTNAME from acme.json"
+            CERT_READY=false
+        elif [ -z "$KEY" ] || [ "$KEY" = "null" ]; then
+            echo "⚠ Warning: Could not extract private key for $HOSTNAME from acme.json"
+            CERT_READY=false
+        else
+            # Remove any existing certificate directories (cleanup from failed runs)
+            if [ -d "$CERT_FILE" ]; then
+                echo "Removing certificate directory (from failed previous run)"
+                sudo rm -rf "$CERT_FILE"
+            fi
+            if [ -d "$KEY_FILE" ]; then
+                echo "Removing key directory (from failed previous run)"
+                sudo rm -rf "$KEY_FILE"
+            fi
+
+            # Decode and save certificate
+            echo "$CERT" | base64 -d > "$CERT_FILE"
+
+            # Decode and save private key
+            echo "$KEY" | base64 -d > "$KEY_FILE"
+
+            # Verify files were created successfully
+            if [ ! -f "$CERT_FILE" ] || [ ! -s "$CERT_FILE" ]; then
+                echo "⚠ Warning: Certificate file was not created properly"
+                CERT_READY=false
+            elif [ ! -f "$KEY_FILE" ] || [ ! -s "$KEY_FILE" ]; then
+                echo "⚠ Warning: Key file was not created properly"
+                CERT_READY=false
+            else
+                echo "✓ Successfully created certificate files"
+            fi
+        fi
     fi
 
-    if [ -z "$KEY" ] || [ "$KEY" = "null" ]; then
-        echo "Error: Could not extract private key for $HOSTNAME from acme.json"
-        exit 1
+    if [ "$CERT_READY" = false ]; then
+        echo ""
+        echo "⚠ Certificate files not available. Haraka will not start until certificates are present."
+        echo "After certificates are obtained, extract them with:"
+        echo "  cd /root/wildduck-dockerized && ./update_certs.sh"
+        echo ""
     fi
-
-    # Remove any existing certificate directories (cleanup from failed runs)
-    if [ -d "$CERT_FILE" ]; then
-        echo "Removing certificate directory (from failed previous run)"
-        sudo rm -rf "$CERT_FILE"
-    fi
-    if [ -d "$KEY_FILE" ]; then
-        echo "Removing key directory (from failed previous run)"
-        sudo rm -rf "$KEY_FILE"
-    fi
-
-    # Decode and save certificate
-    echo "$CERT" | base64 -d > "$CERT_FILE"
-
-    # Decode and save private key
-    echo "$KEY" | base64 -d > "$KEY_FILE"
-
-    # Verify files were created successfully
-    if [ ! -f "$CERT_FILE" ] || [ ! -s "$CERT_FILE" ]; then
-        echo "Error: Certificate file was not created properly"
-        exit 1
-    fi
-
-    if [ ! -f "$KEY_FILE" ] || [ ! -s "$KEY_FILE" ]; then
-        echo "Error: Key file was not created properly"
-        exit 1
-    fi
-
-    echo "✓ Successfully created certificate files"
 
     # Update Traefik dynamic configuration to point at the generated certs
     sed -i "s/wildduck.dockerized.test/$HOSTNAME/g" ./config-generated/dynamic_conf/dynamic.yml
@@ -786,7 +825,18 @@ EOF
     echo "The script will check if Traefik has renewed the certificate and update the files accordingly"
 fi
 
-echo "Done!"
+# Start all services
+echo ""
+echo "Starting all services..."
+cd ./config-generated/
+sudo docker compose up -d
+cd ../
+
+echo ""
+echo "✓ Setup completed successfully!"
+echo ""
+echo "Service status:"
+sudo docker ps --format "table {{.Names}}\t{{.Status}}" | grep -E "wildduck|zonemta|haraka|mail_box_indexer|traefik"
 
 # Always run DNS setup
 source "./setup-scripts/dns_setup.sh"
