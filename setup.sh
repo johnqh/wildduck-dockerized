@@ -29,7 +29,7 @@ echo "Setting up $SERVICES"
 
 # Mail domain and hostname are hardcoded
 MAILDOMAIN="0xmail.box"
-HOSTNAME="mail.0xmail.box"
+HOSTNAME="0xmail.box"
 
 echo -e "MAIL DOMAIN: $MAILDOMAIN, HOSTNAME: $HOSTNAME"
 
