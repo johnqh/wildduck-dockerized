@@ -93,6 +93,8 @@ services:
       - redis
     volumes:
       - ./config/zone-mta:/app/config
+    networks:
+      - wildduck_network
     labels:
       traefik.enable: true
       # SMTPS (Port 465) - Secure SMTP for sending
@@ -118,6 +120,8 @@ services:
       - ./config/haraka:/app/config
       - ./certs/HOSTNAME-key.pem:/app/config/tls_key.pem  # TLS certificate
       - ./certs/HOSTNAME.pem:/app/config/tls_cert.pem      # TLS certificate
+    networks:
+      - wildduck_network
 
   # Rspamd - Spam Filter
   # Analyzes incoming emails for spam/phishing
@@ -131,6 +135,8 @@ services:
       - ./config/rspamd/override.d:/etc/rspamd/override.d
       - ./config/rspamd/worker-normal.conf:/etc/rspamd/worker-normal.conf
       - ./config/rspamd/local.d:/etc/rspamd/local.d
+    networks:
+      - wildduck_network
 
   # MongoDB - Primary Database
   # Stores user accounts, mailboxes, messages, and configuration
@@ -140,6 +146,8 @@ services:
     restart: unless-stopped
     volumes:
       - mongo:/data/db  # Persistent storage for database
+    networks:
+      - wildduck_network
     healthcheck:
       test: ["CMD", "mongosh", "--eval", "db.adminCommand('ping')"]
       interval: 10s
@@ -155,6 +163,8 @@ services:
     restart: unless-stopped
     volumes:
       - redis:/data  # Persistent storage for Redis data
+    networks:
+      - wildduck_network
     healthcheck:
       test: ["CMD", "redis-cli", "ping"]
       interval: 10s
@@ -240,6 +250,8 @@ services:
       - "127.0.0.1:5432:5432"  # Expose only on localhost for debugging
     volumes:
       - postgres:/var/lib/postgresql/data  # Persistent storage
+    networks:
+      - wildduck_network
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U ponder -d mail_box_indexer"]
       interval: 10s
@@ -301,3 +313,5 @@ services:
       - traefik:/data                                  # Persistent storage (ACME certificates)
       - ./certs:/etc/traefik/certs                     # SSL/TLS certificates
       - ./dynamic_conf:/etc/traefik/dynamic_conf:ro    # Static configuration files
+    networks:
+      - wildduck_network
