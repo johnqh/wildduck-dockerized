@@ -218,10 +218,15 @@ else
     esac
 fi
 
-if [ ! -e ./config-generated ]; then 
+# Ensure config-generated directory exists
+mkdir -p config-generated
+
+# Copy default configuration files if they don't exist
+if [ ! -e ./config-generated/config-generated ]; then
     echo "Copying default configuration into ./config-generated/config-generated"
-    mkdir config-generated
     cp -r ./default-config ./config-generated/config-generated
+else
+    echo "Configuration files already exist in ./config-generated/config-generated"
 fi
 
 # SSL
