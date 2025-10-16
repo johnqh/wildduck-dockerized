@@ -283,12 +283,13 @@ else
                 /^[[:space:]]\{2\}mongo:$/s/^/#/;
             }' "${DOCKER_COMPOSE_FILE}"
 
-            echo "Commenting out only '- mongo' lines within 'depends_on' blocks in ${DOCKER_COMPOSE_FILE}..."
+            echo "Removing mongo dependencies from services in ${DOCKER_COMPOSE_FILE}..."
+            # Remove mongo: and its condition from depends_on blocks
             sed -i -e '
-            /^[[:space:]]\{4\}depends_on:$/ {
-                n;
-                /^[[:space:]]\{6\}-\s*mongo$/ {
-                    s/^/#/;
+            /^[[:space:]]\{4\}depends_on:$/,/^[[:space:]]\{0,4\}[a-z]/ {
+                /^[[:space:]]\{6\}mongo:$/,/^[[:space:]]\{8\}condition:/ {
+                    /^[[:space:]]\{6\}mongo:$/d;
+                    /^[[:space:]]\{8\}condition:/d;
                 }
             }' "${DOCKER_COMPOSE_FILE}"
 

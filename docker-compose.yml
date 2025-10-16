@@ -3,8 +3,6 @@
 # See ENDPOINTS.md for API reference
 # See .env.example for configuration options
 
-version: "3.8"
-
 # Persistent data volumes
 volumes:
   mongo:      # User accounts, mailboxes, messages
