@@ -489,24 +489,24 @@ sed -i "s|mongo = \".*\"|mongo = \"$MONGO_URL\"|" ./config-generated/config-gene
 
 # Apply CORS configuration
 echo "Applying CORS configuration to WildDuck API..."
+
+# Remove any existing CORS section
+sed -i '/^\[cors\]/,/^$/d' ./config-generated/config-generated/wildduck/api.toml
+sed -i '/^# \[cors\]/,/^$/d' ./config-generated/config-generated/wildduck/api.toml
+
+# Add CORS section (always required by WildDuck)
+echo "" >> ./config-generated/config-generated/wildduck/api.toml
+echo "[cors]" >> ./config-generated/config-generated/wildduck/api.toml
+
 if [ "$CORS_ENABLED" = true ]; then
     # Enable CORS with specified origins
     # Convert comma-separated origins to TOML array format
     TOML_ORIGINS=$(echo "$CORS_ORIGINS" | sed 's/,/", "/g' | sed 's/^/["/' | sed 's/$/"]/')
-    
-    # Remove any existing CORS section and add new one
-    sed -i '/^\[cors\]/,/^$/d' ./config-generated/config-generated/wildduck/api.toml
-    sed -i '/^# \[cors\]/,/^$/d' ./config-generated/config-generated/wildduck/api.toml
-    
-    # Add CORS section at the end
-    echo "" >> ./config-generated/config-generated/wildduck/api.toml
-    echo "[cors]" >> ./config-generated/config-generated/wildduck/api.toml
     echo "origins = $TOML_ORIGINS" >> ./config-generated/config-generated/wildduck/api.toml
-    
     echo "CORS enabled with origins: $CORS_ORIGINS"
 else
-    # Ensure CORS section is commented out or removed
-    sed -i '/^\[cors\]/,/^$/d' ./config-generated/config-generated/wildduck/api.toml
+    # Disable CORS with empty array
+    echo "origins = []" >> ./config-generated/config-generated/wildduck/api.toml
     echo "CORS disabled"
 fi
 sed -i "s/\"domainadmin@example.com\"/\"domainadmin@$MAILDOMAIN\"/" ./config-generated/config-generated/wildduck/acme.toml
