@@ -485,8 +485,8 @@ sed -i "s/secret=\"super secret key\"/secret=\"$DKIM_SECRET\"/" ./config-generat
 sed -i "s|mongo = \".*\"|mongo = \"$MONGO_URL\"|" ./config-generated/config-generated/zone-mta/dbs-production.toml
 
 # ZoneMTA should use the same database name as WildDuck, not a separate "zone-mta" database
-# Extract database name from MONGO_URL (get the part after the last /)
-DB_NAME=$(echo "$MONGO_URL" | sed 's/.*\///')
+# Extract database name from MONGO_URL (get the part after the last /, strip query parameters)
+DB_NAME=$(echo "$MONGO_URL" | sed 's/.*\///' | sed 's/?.*//')
 sed -i "s|sender = \"zone-mta\"|sender = \"$DB_NAME\"|" ./config-generated/config-generated/zone-mta/dbs-production.toml
 
 # Wildduck - sender and dkim
