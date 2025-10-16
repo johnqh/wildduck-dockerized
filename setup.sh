@@ -27,9 +27,22 @@ SERVICES="Wildduck, Zone-MTA, Haraka, Mail Box Indexer"
 
 echo "Setting up $SERVICES"
 
-# Mail domain and hostname are hardcoded
-MAILDOMAIN="0xmail.box"
-HOSTNAME="0xmail.box"
+# Prompt for mail domain and hostname
+echo ""
+echo "--- Domain Configuration ---"
+read -p "Enter your mail domain (required): " MAILDOMAIN
+
+if [ -z "$MAILDOMAIN" ]; then
+    echo "Error: Mail domain cannot be empty"
+    exit 1
+fi
+
+read -p "Enter your hostname (optional, press Enter to use '$MAILDOMAIN'): " HOSTNAME
+
+if [ -z "$HOSTNAME" ]; then
+    HOSTNAME="$MAILDOMAIN"
+    echo "Using mail domain as hostname: $HOSTNAME"
+fi
 
 echo -e "MAIL DOMAIN: $MAILDOMAIN, HOSTNAME: $HOSTNAME"
 
@@ -238,7 +251,7 @@ sudo docker stop $(sudo docker ps -q --filter "name=^/config-generated")
 # Traefik
 echo "Copying Traefik config and replacing default configuration"
 cp -r ./dynamic_conf ./config-generated
-sed -i "s|\./config/|./config-generated/|g" ./config-generated/docker-compose.yml
+sed -i "s|\./config/|./config-generated/config-generated/|g" ./config-generated/docker-compose.yml
 sed -i "s|HOSTNAME|$HOSTNAME|g" ./config-generated/docker-compose.yml
 
 
@@ -494,21 +507,25 @@ if [ -f "../wildduck/config/api.toml" ]; then
     sed -i "s|indexerBaseUrl = \".*\"|indexerBaseUrl = \"$INDEXER_BASE_URL\"|" ./config-generated/config-generated/wildduck/api.toml
 
     # Apply optional Doppler overrides if they exist
-    if [ -n "$WILDDUCK_ACCESS_TOKEN" ]; then
-        echo "✓ Applying WILDDUCK_ACCESS_TOKEN from Doppler"
-        sed -i "s|# accessToken=\"somesecretvalue\"|accessToken=\"$WILDDUCK_ACCESS_TOKEN\"|" ./config-generated/config-generated/wildduck/api.toml
-        sed -i "s|accessToken=\"somesecretvalue\"|accessToken=\"$WILDDUCK_ACCESS_TOKEN\"|" ./config-generated/config-generated/wildduck/api.toml
-    fi
+    # Note: WILDDUCK_ACCESS_TOKEN and WILDDUCK_ACCESSCONTROL_ENABLED are NOT applied
+    # to keep the API accessible without authentication (matching source api.toml)
+    # If you need authentication, manually edit config-generated/config-generated/wildduck/api.toml
+
+    # if [ -n "$WILDDUCK_ACCESS_TOKEN" ]; then
+    #     echo "✓ Applying WILDDUCK_ACCESS_TOKEN from Doppler"
+    #     sed -i "s|# accessToken=\"somesecretvalue\"|accessToken=\"$WILDDUCK_ACCESS_TOKEN\"|" ./config-generated/config-generated/wildduck/api.toml
+    #     sed -i "s|accessToken=\"somesecretvalue\"|accessToken=\"$WILDDUCK_ACCESS_TOKEN\"|" ./config-generated/config-generated/wildduck/api.toml
+    # fi
 
     if [ -n "$WILDDUCK_ROOT_USERNAME" ]; then
         echo "✓ Applying WILDDUCK_ROOT_USERNAME from Doppler"
         sed -i "s|rootUsername = \"admin\"|rootUsername = \"$WILDDUCK_ROOT_USERNAME\"|" ./config-generated/config-generated/wildduck/api.toml
     fi
 
-    if [ -n "$WILDDUCK_ACCESSCONTROL_ENABLED" ]; then
-        echo "✓ Applying WILDDUCK_ACCESSCONTROL_ENABLED from Doppler"
-        sed -i "s|enabled = false|enabled = $WILDDUCK_ACCESSCONTROL_ENABLED|" ./config-generated/config-generated/wildduck/api.toml
-    fi
+    # if [ -n "$WILDDUCK_ACCESSCONTROL_ENABLED" ]; then
+    #     echo "✓ Applying WILDDUCK_ACCESSCONTROL_ENABLED from Doppler"
+    #     sed -i "s|enabled = false|enabled = $WILDDUCK_ACCESSCONTROL_ENABLED|" ./config-generated/config-generated/wildduck/api.toml
+    # fi
 else
     echo "Warning: ../wildduck/config/api.toml not found. Using default config."
 fi

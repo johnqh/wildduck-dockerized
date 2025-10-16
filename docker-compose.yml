@@ -22,7 +22,7 @@ networks:
 services:
   # WildDuck - IMAP/POP3/API Server
   # Handles mail protocols and provides REST API for management
-  # API accessible at https://HOSTNAME/api (requires X-Access-Token)
+  # API accessible at http://HOSTNAME/api and https://HOSTNAME/api
   wildduck:
     image: johnqh/wildduck:latest
     restart: unless-stopped
@@ -69,6 +69,13 @@ services:
       traefik.tcp.routers.wildduck-pop3s.service: wildduck-pop3s
       traefik.tcp.services.wildduck-pop3s.loadbalancer.server.port: 110
 
+      # HTTP API (Port 80) - REST API at /api path
+      traefik.http.routers.wildduck-api-path-http.entrypoints: web
+      traefik.http.routers.wildduck-api-path-http.rule: Host(`HOSTNAME`) && PathPrefix(`/api`)
+      traefik.http.routers.wildduck-api-path-http.middlewares: wildduck-api-stripprefix@docker
+      traefik.http.routers.wildduck-api-path-http.priority: 100
+      traefik.http.routers.wildduck-api-path-http.service: wildduck-api-path
+
       # HTTPS API (Port 443) - REST API at /api path
       traefik.http.routers.wildduck-api-path.entrypoints: websecure
       traefik.http.routers.wildduck-api-path.rule: Host(`HOSTNAME`) && PathPrefix(`/api`)
@@ -77,7 +84,7 @@ services:
       traefik.http.services.wildduck-api-path.loadbalancer.server.port: 8080
 
       # Middleware: Strip /api prefix before forwarding to WildDuck
-      # Converts https://HOSTNAME/api/users → http://wildduck:8080/users
+      # Converts http(s)://HOSTNAME/api/users → http://wildduck:8080/users
       traefik.http.middlewares.wildduck-api-stripprefix.stripprefix.prefixes: /api
 
   # ZoneMTA - Outbound SMTP Server
@@ -175,7 +182,7 @@ services:
   # Mail Box Indexer - Blockchain Integration Service
   # Indexes blockchain events for wallet-based email addresses
   # Provides OAuth 2.0 authentication and points system
-  # API accessible at https://HOSTNAME/idx
+  # API accessible at http://HOSTNAME/idx and https://HOSTNAME/idx
   mail_box_indexer:
     image: johnqh/mail_box_indexer:latest
     restart: unless-stopped
@@ -224,6 +231,14 @@ services:
       start_period: 120s
     labels:
       traefik.enable: true
+
+      # HTTP API (Port 80) - Blockchain indexer API at /idx path
+      traefik.http.routers.mail-box-indexer-http.entrypoints: web
+      traefik.http.routers.mail-box-indexer-http.rule: Host(`HOSTNAME`) && PathPrefix(`/idx`)
+      traefik.http.routers.mail-box-indexer-http.middlewares: mail-box-indexer-stripprefix@docker
+      traefik.http.routers.mail-box-indexer-http.priority: 100
+      traefik.http.routers.mail-box-indexer-http.service: mail-box-indexer
+
       # HTTPS API (Port 443) - Blockchain indexer API at /idx path
       traefik.http.routers.mail-box-indexer.entrypoints: websecure
       traefik.http.routers.mail-box-indexer.rule: Host(`HOSTNAME`) && PathPrefix(`/idx`)
@@ -231,8 +246,9 @@ services:
       traefik.http.routers.mail-box-indexer.tls.certresolver: letsencrypt
       traefik.http.routers.mail-box-indexer.middlewares: mail-box-indexer-stripprefix@docker
       traefik.http.services.mail-box-indexer.loadbalancer.server.port: 42069
+
       # Middleware: Strip /idx prefix before forwarding to indexer
-      # Converts https://HOSTNAME/idx/users → http://mail_box_indexer:42069/users
+      # Converts http(s)://HOSTNAME/idx/users → http://mail_box_indexer:42069/users
       traefik.http.middlewares.mail-box-indexer-stripprefix.stripprefix.prefixes: /idx
 
   # PostgreSQL - Indexer Database
@@ -303,7 +319,7 @@ services:
       traefik.http.routers.redirs.rule: hostregexp(`{host:.+}`)
 
     ports:
-      - 80:80/tcp      # HTTP (redirects to HTTPS)
+      - 80:80/tcp      # HTTP (handles /api and /idx, redirects others to HTTPS)
       - 443:443/tcp    # HTTPS
       - 993:993/tcp    # IMAPS
       - 995:995/tcp    # POP3S
