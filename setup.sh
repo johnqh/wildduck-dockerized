@@ -506,19 +506,9 @@ if [ -f "../wildduck/config/api.toml" ]; then
     # Always set indexerBaseUrl to internal Docker service
     sed -i "s|indexerBaseUrl = \".*\"|indexerBaseUrl = \"$INDEXER_BASE_URL\"|" ./config-generated/config-generated/wildduck/api.toml
 
-    # Explicitly disable API authentication to allow setup scripts to work
-    # Comment out any accessToken setting
-    echo "✓ Disabling API authentication for easier access"
-    sed -i "s|^accessToken=|#accessToken=|" ./config-generated/config-generated/wildduck/api.toml
-    sed -i "s|^[[:space:]]*accessToken=|#accessToken=|" ./config-generated/config-generated/wildduck/api.toml
-
-    # Set accessControl enabled to false
-    sed -i "s|^enabled = true|enabled = false|" ./config-generated/config-generated/wildduck/api.toml
-    sed -i "s|^[[:space:]]*enabled = true|enabled = false|" ./config-generated/config-generated/wildduck/api.toml
-
     # Apply optional Doppler overrides if they exist
     # Note: WILDDUCK_ACCESS_TOKEN and WILDDUCK_ACCESSCONTROL_ENABLED are NOT applied by default
-    # to keep the API accessible without authentication
+    # to keep the API accessible without authentication (both source configs have auth disabled)
     # If you need authentication, manually edit config-generated/config-generated/wildduck/api.toml
 
     # if [ -n "$WILDDUCK_ACCESS_TOKEN" ]; then
