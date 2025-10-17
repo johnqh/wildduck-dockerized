@@ -1,22 +1,16 @@
 #!/bin/bash
 
-echo "Don't forget to add the first user!\n"
-read -p "Username (press enter to use 'firstuser' as username): " username
-if [ -z "$username" ]; then 
-    username="firstuser"
-fi
-
-useraddress="$username@$MAILDOMAIN"
-read -p "Password (press enter to generate random): " password
-if [ -z "$password" ]; then 
-    password=`head /dev/urandom | tr -dc A-Za-z0-9 | head -c30` # random password
-    echo -e "Your generated password: $password"
-fi
-
-echo -e "Your first user:\nUsername: $username\nPassword: $password\nAddress:$useraddress\n"
-
-curl -i -XPOST http://localhost:8080/users \
--H 'Content-type: application/json' \
--d '{"username": '\"$username\"', "password": '\"$password\"', "address": '\"$useraddress\"'}'
-
-echo "All done, open https://$HOSTNAME/ in your browser"
+echo ""
+echo "========================================="
+echo "✓ Setup completed successfully!"
+echo "========================================="
+echo ""
+echo "Your WildDuck mail server is now running at:"
+echo "  API:  https://$HOSTNAME/api"
+echo "  Web:  https://$HOSTNAME/"
+echo ""
+echo "To create users, use the WildDuck API:"
+echo "  curl -XPOST https://$HOSTNAME/api/users \\"
+echo "    -H 'Content-type: application/json' \\"
+echo "    -d '{\"username\": \"yourname\", \"password\": \"yourpassword\", \"address\": \"yourname@$MAILDOMAIN\"}'"
+echo ""
