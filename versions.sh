@@ -66,9 +66,6 @@ function get_app_version {
         "wildduck")
             version_output=$(sudo docker exec $container_name node -e "console.log(require('/wildduck/package.json').version)" 2>/dev/null || echo "N/A")
             ;;
-        "wildduck-webmail")
-            version_output=$(sudo docker exec $container_name node -e "console.log(require('/app/package.json').version)" 2>/dev/null || echo "N/A")
-            ;;
         "zonemta")
             version_output=$(sudo docker exec $container_name node -e "console.log(require('/app/package.json').version)" 2>/dev/null || echo "N/A")
             ;;
@@ -88,6 +85,12 @@ function get_app_version {
             ;;
         "redis")
             version_output=$(sudo docker exec $container_name redis-server --version 2>/dev/null | awk '{print $3}' | cut -d'=' -f2 || echo "N/A")
+            ;;
+        "postgres")
+            version_output=$(sudo docker exec $container_name psql --version 2>/dev/null | awk '{print $3}' || echo "N/A")
+            ;;
+        "mail_box_indexer")
+            version_output=$(sudo docker exec $container_name node -e "console.log(require('/app/package.json').version)" 2>/dev/null || echo "N/A")
             ;;
         "traefik")
             version_output=$(sudo docker exec $container_name traefik version 2>/dev/null | grep Version | awk '{print $2}' || echo "N/A")
@@ -131,12 +134,13 @@ echo ""
 # Define services to check
 declare -A services=(
     ["wildduck"]="WildDuck"
-    ["wildduck-webmail"]="WildDuck Webmail"
     ["zonemta"]="ZoneMTA"
     ["haraka"]="Haraka"
     ["rspamd"]="Rspamd"
     ["mongo"]="MongoDB"
     ["redis"]="Redis"
+    ["postgres"]="PostgreSQL"
+    ["mail_box_indexer"]="Mail Box Indexer"
     ["traefik"]="Traefik"
 )
 
@@ -145,7 +149,7 @@ echo "----------------------------------------"
 printf "%-20s %-50s %-20s\n" "SERVICE" "IMAGE" "APP VERSION"
 echo "----------------------------------------"
 
-for service_key in wildduck wildduck-webmail zonemta haraka rspamd mongo redis traefik; do
+for service_key in wildduck zonemta haraka rspamd mongo redis postgres mail_box_indexer traefik; do
     service_name=${services[$service_key]}
     
     # Try different container name patterns
@@ -173,7 +177,7 @@ echo "----------------------------------------"
 echo ""
 
 # Show summary statistics
-RUNNING_COUNT=$(sudo docker ps --format "{{.Names}}" | grep -E "(wildduck|zonemta|haraka|rspamd|mongo|redis|traefik)" | wc -l)
+RUNNING_COUNT=$(sudo docker ps --format "{{.Names}}" | grep -E "(wildduck|zonemta|haraka|rspamd|mongo|redis|postgres|mail_box_indexer|traefik)" | wc -l)
 TOTAL_CONTAINERS=$(sudo docker ps --format "{{.Names}}" | wc -l)
 
 print_header "Summary:"
