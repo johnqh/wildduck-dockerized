@@ -98,7 +98,6 @@ $DKIM_SELECTOR._domainkey.$MAILDOMAIN. IN TXT \"$DKIM_DNS\"
 The DKIM .json text we added to wildduck server:
     curl -i -XPOST http://localhost:8080/dkim \\
     -H 'Content-type: application/json' \\
-    -H 'X-Access-Token: $ACCESS_TOKEN' \\
     -d '$DKIM_JSON'
 
 
@@ -106,9 +105,9 @@ Please refer to the manual how to change/delete/update DKIM keys
 via the REST api (with curl on localhost) for the newest version.
 
 List DKIM keys:
-    curl -H 'X-Access-Token: $ACCESS_TOKEN' -i http://localhost:8080/dkim
+    curl -i http://localhost:8080/dkim
 Delete DKIM:
-    curl -H 'X-Access-Token: $ACCESS_TOKEN' -i -XDELETE http://localhost:8080/dkim/<dkim key id>
+    curl -i -XDELETE http://localhost:8080/dkim/<dkim key id>
 
 Move DKIM keys to another machine:
 
@@ -160,12 +159,63 @@ else
     cd ../
 fi
 
-printf "Waiting for the server to start up..."
-until $(curl --output /dev/null --silent --fail -H "X-Access-Token: $ACCESS_TOKEN" -H 'Content-type: application/json' http://localhost:8080/users); do
-    printf '.'
+echo "Waiting for the WildDuck API server to start up..."
+echo "Testing endpoint: http://localhost:8080/users"
+echo ""
+
+WAIT_COUNT=0
+MAX_WAIT=180  # 6 minutes total (180 * 2 seconds)
+API_URL="http://localhost:8080/users"
+
+while true; do
+    # Try to connect to the API
+    HTTP_CODE=$(curl --output /dev/null --silent --write-out "%{http_code}" -H 'Content-type: application/json' "$API_URL")
+
+    if [ "$HTTP_CODE" = "200" ] || [ "$HTTP_CODE" = "000" -a -n "$(curl --silent "$API_URL" 2>/dev/null)" ]; then
+        echo ""
+        echo "✓ WildDuck API is responding (HTTP $HTTP_CODE)"
+        break
+    fi
+
+    # Show progress
+    printf "."
+    WAIT_COUNT=$((WAIT_COUNT + 1))
+
+    # Every 15 attempts (30 seconds), show detailed status
+    if [ $((WAIT_COUNT % 15)) -eq 0 ]; then
+        echo ""
+        echo "[$(date '+%H:%M:%S')] Waited ${WAIT_COUNT} attempts ($(($WAIT_COUNT * 2)) seconds)..."
+        echo "  API Response: HTTP $HTTP_CODE"
+        echo "  Container Status:"
+        sudo docker ps --filter "name=config-generated" --format "    {{.Names}}: {{.Status}}" | head -5
+        echo ""
+        printf "  Continuing to wait"
+    fi
+
+    # Timeout check
+    if [ $WAIT_COUNT -ge $MAX_WAIT ]; then
+        echo ""
+        echo ""
+        echo "⚠ ERROR: WildDuck API did not start within $((MAX_WAIT * 2)) seconds"
+        echo ""
+        echo "Last HTTP Response Code: $HTTP_CODE"
+        echo ""
+        echo "Container Status:"
+        sudo docker ps -a --filter "name=config-generated" --format "table {{.Names}}\t{{.Status}}"
+        echo ""
+        echo "WildDuck Container Logs (last 30 lines):"
+        sudo docker logs config-generated-wildduck-1 --tail 30 2>&1 || echo "Could not retrieve logs"
+        echo ""
+        echo "Troubleshooting:"
+        echo "  1. Check if MongoDB is accessible: sudo docker logs config-generated-wildduck-1 | grep -i mongo"
+        echo "  2. Check all container logs: cd config-generated && sudo docker compose logs"
+        echo "  3. Verify all services are running: sudo docker ps"
+        echo ""
+        exit 1
+    fi
+
     sleep 2
 done
-echo "."
 
 # Ensure DKIM key
 echo "Registering DKIM key for $MAILDOMAIN"
@@ -173,7 +223,6 @@ echo $DKIM_JSON
 
 curl -i -XPOST http://localhost:8080/dkim \
 -H 'Content-type: application/json' \
--H "X-Access-Token: $ACCESS_TOKEN" \
 -d "$DKIM_JSON"
 
 echo ""

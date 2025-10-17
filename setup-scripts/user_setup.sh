@@ -17,7 +17,6 @@ echo -e "Your first user:\nUsername: $username\nPassword: $password\nAddress:$us
 
 curl -i -XPOST http://localhost:8080/users \
 -H 'Content-type: application/json' \
--H "X-Access-Token: $ACCESS_TOKEN" \
 -d '{"username": '\"$username\"', "password": '\"$password\"', "address": '\"$useraddress\"'}'
 
 echo "All done, open https://$HOSTNAME/ in your browser"
