@@ -8,7 +8,10 @@
       "WebFetch(domain:github.com)",
       "WebFetch(domain:raw.githubusercontent.com)",
       "Read(//Users/johnhuang/0xmail/mail_box_indexer/**)",
-      "Read(//Users/johnhuang/0xmail/wildduck/**)"
+      "Read(//Users/johnhuang/0xmail/wildduck/**)",
+      "Bash(find:*)",
+      "Bash(curl:*)",
+      "Bash(docker exec:*)"
     ],
     "deny": [],
     "ask": []
