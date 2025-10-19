@@ -198,7 +198,7 @@ services:
     # All configuration via environment variables (see .env.example)
     environment:
       - NODE_ENV=production
-      - DATABASE_URL=postgresql://ponder:password@postgres:5432/mail_box_indexer
+      - DATABASE_URL=${POSTGRES_URL:-postgresql://ponder:password@postgres:5432/mail_box_indexer}
       - DATABASE_SCHEMA=public
       - EMAIL_DOMAIN=${EMAIL_DOMAIN:-0xmail.box}
       - WILDDUCK_ENDPOINT_URL=http://wildduck:8080
