@@ -199,7 +199,7 @@ services:
     environment:
       - NODE_ENV=production
       - POSTGRES_URL=${POSTGRES_URL}  # Required from Doppler
-      - POSTGRES_SCHEMA=${POSTGRES_SCHEMA:-public}
+      - DATABASE_SCHEMA=${POSTGRES_SCHEMA:-public}
       - EMAIL_DOMAIN=${EMAIL_DOMAIN:-0xmail.box}
       - WILDDUCK_ENDPOINT_URL=http://wildduck:8080
       - WILDDUCK_IP_ADDRESS=${WILDDUCK_IP_ADDRESS:-172.20.0.10}
