@@ -225,8 +225,8 @@ mkdir -p config-generated
 
 # Always copy fresh configuration files to avoid corrupted state
 echo "Copying default configuration files..."
-rm -rf ./config-generated/config-generated
-cp -r ./default-config ./config-generated/config-generated
+rm -rf ./config-generated/config
+cp -r ./default-config ./config-generated/config
 echo "✓ Configuration files copied successfully"
 
 # SSL
@@ -251,7 +251,7 @@ sudo docker stop $(sudo docker ps -q --filter "name=^/config-generated")
 # Traefik
 echo "Copying Traefik config and replacing default configuration"
 cp -r ./dynamic_conf ./config-generated
-sed -i "s|\./config/|./config-generated/|g" ./config-generated/docker-compose.yml
+sed -i "s|\./config/|./config-generated/config/|g" ./config-generated/docker-compose.yml
 sed -i "s|HOSTNAME|$HOSTNAME|g" ./config-generated/docker-compose.yml
 
 
@@ -448,16 +448,16 @@ fi
 echo "Replacing domains in $SERVICES configuration"
 
 # Zone-MTA
-sed -i "s/name=\"example.com\"/name=\"$HOSTNAME\"/" ./config-generated/config-generated/zone-mta/pools.toml
-sed -i "s/hostname=\"email.example.com\"/hostname=\"$HOSTNAME\"/" ./config-generated/config-generated/zone-mta/plugins/wildduck.toml
-sed -i "s/rewriteDomain=\"email.example.com\"/rewriteDomain=\"$MAILDOMAIN\"/" ./config-generated/config-generated/zone-mta/plugins/wildduck.toml
+sed -i "s/name=\"example.com\"/name=\"$HOSTNAME\"/" ./config-generated/config/zone-mta/pools.toml
+sed -i "s/hostname=\"email.example.com\"/hostname=\"$HOSTNAME\"/" ./config-generated/config/zone-mta/plugins/wildduck.toml
+sed -i "s/rewriteDomain=\"email.example.com\"/rewriteDomain=\"$MAILDOMAIN\"/" ./config-generated/config/zone-mta/plugins/wildduck.toml
 
 # Wildduck
-sed -i "s/hostname=\"email.example.com\"/hostname=\"$HOSTNAME\"/" ./config-generated/config-generated/wildduck/imap.toml
-sed -i "s/hostname=\"email.example.com\"/hostname=\"$HOSTNAME\"/" ./config-generated/config-generated/wildduck/pop3.toml
-sed -i "s/hostname=\"email.example.com\"/hostname=\"$HOSTNAME\"/" ./config-generated/config-generated/wildduck/default.toml
-sed -i "s/rpId=\"email.example.com\"/rpId=\"$HOSTNAME\"/" ./config-generated/config-generated/wildduck/default.toml
-sed -i "s/emailDomain=\"email.example.com\"/emailDomain=\"$MAILDOMAIN\"/" ./config-generated/config-generated/wildduck/default.toml
+sed -i "s/hostname=\"email.example.com\"/hostname=\"$HOSTNAME\"/" ./config-generated/config/wildduck/imap.toml
+sed -i "s/hostname=\"email.example.com\"/hostname=\"$HOSTNAME\"/" ./config-generated/config/wildduck/pop3.toml
+sed -i "s/hostname=\"email.example.com\"/hostname=\"$HOSTNAME\"/" ./config-generated/config/wildduck/default.toml
+sed -i "s/rpId=\"email.example.com\"/rpId=\"$HOSTNAME\"/" ./config-generated/config/wildduck/default.toml
+sed -i "s/emailDomain=\"email.example.com\"/emailDomain=\"$MAILDOMAIN\"/" ./config-generated/config/wildduck/default.toml
 
 echo "Generating secrets and placing them in $SERVICES configuration"
 
@@ -475,88 +475,88 @@ HMAC_SECRET=${WILDDUCK_HMAC_SECRET:-$(head /dev/urandom | tr -dc A-Za-z0-9 | hea
 MONGO_URL=${WILDDUCK_MONGO_URL:-mongodb://mongo:27017/wildduck}
 
 # Zone-MTA
-sed -i "s/secret=\"super secret value\"/secret=\"$ZONEMTA_SECRET\"/" ./config-generated/config-generated/zone-mta/plugins/loop-breaker.toml
-sed -i "s/secret=\"secret value\"/secret=\"$SRS_SECRET\"/" ./config-generated/config-generated/zone-mta/plugins/wildduck.toml
-sed -i "s/secret=\"super secret key\"/secret=\"$DKIM_SECRET\"/" ./config-generated/config-generated/zone-mta/plugins/wildduck.toml
-sed -i "s|mongo = \".*\"|mongo = \"$MONGO_URL\"|" ./config-generated/config-generated/zone-mta/dbs-production.toml
+sed -i "s/secret=\"super secret value\"/secret=\"$ZONEMTA_SECRET\"/" ./config-generated/config/zone-mta/plugins/loop-breaker.toml
+sed -i "s/secret=\"secret value\"/secret=\"$SRS_SECRET\"/" ./config-generated/config/zone-mta/plugins/wildduck.toml
+sed -i "s/secret=\"super secret key\"/secret=\"$DKIM_SECRET\"/" ./config-generated/config/zone-mta/plugins/wildduck.toml
+sed -i "s|mongo = \".*\"|mongo = \"$MONGO_URL\"|" ./config-generated/config/zone-mta/dbs-production.toml
 
 # ZoneMTA should use the same database name as WildDuck, not a separate "zone-mta" database
 # Extract database name from MONGO_URL (get the part after the last /, strip query parameters)
 DB_NAME=$(echo "$MONGO_URL" | sed 's/.*\///' | sed 's/?.*//')
-sed -i "s|sender = \"zone-mta\"|sender = \"$DB_NAME\"|" ./config-generated/config-generated/zone-mta/dbs-production.toml
+sed -i "s|sender = \"zone-mta\"|sender = \"$DB_NAME\"|" ./config-generated/config/zone-mta/dbs-production.toml
 
 # Wildduck - sender and dkim
-sed -i "s/#loopSecret=\"secret value\"/loopSecret=\"$SRS_SECRET\"/" ./config-generated/config-generated/wildduck/sender.toml
-sed -i "s/secret=\"super secret key\"/secret=\"$DKIM_SECRET\"/" ./config-generated/config-generated/wildduck/dkim.toml
+sed -i "s/#loopSecret=\"secret value\"/loopSecret=\"$SRS_SECRET\"/" ./config-generated/config/wildduck/sender.toml
+sed -i "s/secret=\"super secret key\"/secret=\"$DKIM_SECRET\"/" ./config-generated/config/wildduck/dkim.toml
 
 # Wildduck - api.toml: Copy from wildduck repo, then apply necessary configurations
 echo "Configuring WildDuck API from source repo..."
 if [ -f "../wildduck/config/api.toml" ]; then
-    cp "../wildduck/config/api.toml" ./config-generated/config-generated/wildduck/api.toml
+    cp "../wildduck/config/api.toml" ./config-generated/config/wildduck/api.toml
     echo "✓ Copied api.toml from wildduck repo"
 
     # Always apply HMAC secret (needed for inter-service communication)
     echo "✓ Applying HMAC secret for accessControl"
-    sed -i "s|secret = \"a secret cat\"|secret = \"$HMAC_SECRET\"|" ./config-generated/config-generated/wildduck/api.toml
+    sed -i "s|secret = \"a secret cat\"|secret = \"$HMAC_SECRET\"|" ./config-generated/config/wildduck/api.toml
 
     # Always set indexerBaseUrl to internal Docker service
-    sed -i "s|indexerBaseUrl = \".*\"|indexerBaseUrl = \"$INDEXER_BASE_URL\"|" ./config-generated/config-generated/wildduck/api.toml
+    sed -i "s|indexerBaseUrl = \".*\"|indexerBaseUrl = \"$INDEXER_BASE_URL\"|" ./config-generated/config/wildduck/api.toml
 
     # Apply optional Doppler overrides if they exist
     # Note: WILDDUCK_ACCESS_TOKEN and WILDDUCK_ACCESSCONTROL_ENABLED are NOT applied by default
     # to keep the API accessible without authentication (both source configs have auth disabled)
-    # If you need authentication, manually edit config-generated/config-generated/wildduck/api.toml
+    # If you need authentication, manually edit config-generated/config/wildduck/api.toml
 
     # if [ -n "$WILDDUCK_ACCESS_TOKEN" ]; then
     #     echo "✓ Applying WILDDUCK_ACCESS_TOKEN from Doppler"
-    #     sed -i "s|# accessToken=\"somesecretvalue\"|accessToken=\"$WILDDUCK_ACCESS_TOKEN\"|" ./config-generated/config-generated/wildduck/api.toml
-    #     sed -i "s|accessToken=\"somesecretvalue\"|accessToken=\"$WILDDUCK_ACCESS_TOKEN\"|" ./config-generated/config-generated/wildduck/api.toml
+    #     sed -i "s|# accessToken=\"somesecretvalue\"|accessToken=\"$WILDDUCK_ACCESS_TOKEN\"|" ./config-generated/config/wildduck/api.toml
+    #     sed -i "s|accessToken=\"somesecretvalue\"|accessToken=\"$WILDDUCK_ACCESS_TOKEN\"|" ./config-generated/config/wildduck/api.toml
     # fi
 
     if [ -n "$WILDDUCK_ROOT_USERNAME" ]; then
         echo "✓ Applying WILDDUCK_ROOT_USERNAME from Doppler"
-        sed -i "s|rootUsername = \"admin\"|rootUsername = \"$WILDDUCK_ROOT_USERNAME\"|" ./config-generated/config-generated/wildduck/api.toml
+        sed -i "s|rootUsername = \"admin\"|rootUsername = \"$WILDDUCK_ROOT_USERNAME\"|" ./config-generated/config/wildduck/api.toml
     fi
 
     # if [ -n "$WILDDUCK_ACCESSCONTROL_ENABLED" ]; then
     #     echo "✓ Applying WILDDUCK_ACCESSCONTROL_ENABLED from Doppler"
-    #     sed -i "s|enabled = false|enabled = $WILDDUCK_ACCESSCONTROL_ENABLED|" ./config-generated/config-generated/wildduck/api.toml
+    #     sed -i "s|enabled = false|enabled = $WILDDUCK_ACCESSCONTROL_ENABLED|" ./config-generated/config/wildduck/api.toml
     # fi
 else
     echo "Warning: ../wildduck/config/api.toml not found. Using default config."
 fi
 
-sed -i "s|mongo = \".*\"|mongo = \"$MONGO_URL\"|" ./config-generated/config-generated/wildduck/dbs.toml
+sed -i "s|mongo = \".*\"|mongo = \"$MONGO_URL\"|" ./config-generated/config/wildduck/dbs.toml
 
 # Apply CORS configuration
 echo "Applying CORS configuration to WildDuck API..."
 
 # Remove any existing CORS section
-sed -i '/^\[cors\]/,/^$/d' ./config-generated/config-generated/wildduck/api.toml
-sed -i '/^# \[cors\]/,/^$/d' ./config-generated/config-generated/wildduck/api.toml
+sed -i '/^\[cors\]/,/^$/d' ./config-generated/config/wildduck/api.toml
+sed -i '/^# \[cors\]/,/^$/d' ./config-generated/config/wildduck/api.toml
 
 # Add CORS section (always required by WildDuck)
-echo "" >> ./config-generated/config-generated/wildduck/api.toml
-echo "[cors]" >> ./config-generated/config-generated/wildduck/api.toml
+echo "" >> ./config-generated/config/wildduck/api.toml
+echo "[cors]" >> ./config-generated/config/wildduck/api.toml
 
 if [ "$CORS_ENABLED" = true ]; then
     # Enable CORS with specified origins
     # Convert comma-separated origins to TOML array format
     TOML_ORIGINS=$(echo "$CORS_ORIGINS" | sed 's/,/", "/g' | sed 's/^/["/' | sed 's/$/"]/')
-    echo "origins = $TOML_ORIGINS" >> ./config-generated/config-generated/wildduck/api.toml
+    echo "origins = $TOML_ORIGINS" >> ./config-generated/config/wildduck/api.toml
     echo "CORS enabled with origins: $CORS_ORIGINS"
 else
     # Disable CORS with empty array
-    echo "origins = []" >> ./config-generated/config-generated/wildduck/api.toml
+    echo "origins = []" >> ./config-generated/config/wildduck/api.toml
     echo "CORS disabled"
 fi
-sed -i "s/\"domainadmin@example.com\"/\"domainadmin@$MAILDOMAIN\"/" ./config-generated/config-generated/wildduck/acme.toml
-sed -i "s/\"https:\/\/wildduck.email\"/\"https:\/\/$MAILDOMAIN\"/" ./config-generated/config-generated/wildduck/acme.toml
+sed -i "s/\"domainadmin@example.com\"/\"domainadmin@$MAILDOMAIN\"/" ./config-generated/config/wildduck/acme.toml
+sed -i "s/\"https:\/\/wildduck.email\"/\"https:\/\/$MAILDOMAIN\"/" ./config-generated/config/wildduck/acme.toml
 
 # Haraka
-sed -i "s/#loopSecret: \"secret value\"/loopSecret: \"$SRS_SECRET\"/" ./config-generated/config-generated/haraka/wildduck.yaml
-sed -i "s/secret: \"secret value\"/secret: \"$SRS_SECRET\"/" ./config-generated/config-generated/haraka/wildduck.yaml
-sed -i "s|url: \".*\"|url: \"$MONGO_URL\"|" ./config-generated/config-generated/haraka/wildduck.yaml
+sed -i "s/#loopSecret: \"secret value\"/loopSecret: \"$SRS_SECRET\"/" ./config-generated/config/haraka/wildduck.yaml
+sed -i "s/secret: \"secret value\"/secret: \"$SRS_SECRET\"/" ./config-generated/config/haraka/wildduck.yaml
+sed -i "s|url: \".*\"|url: \"$MONGO_URL\"|" ./config-generated/config/haraka/wildduck.yaml
 
 # Mail Box Indexer - Set EMAIL_DOMAIN in docker-compose
 echo "Configuring Mail Box Indexer..."
