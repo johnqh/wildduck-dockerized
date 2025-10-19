@@ -310,10 +310,10 @@ fi
 
 # PostgreSQL
 # Check if remote PostgreSQL is configured in Doppler
-if [ -n "$POSTGRES_URL" ]; then
-    echo "Using PostgreSQL URL from Doppler: $POSTGRES_URL"
+if [ -n "$DATABASE_URL" ]; then
+    echo "Using PostgreSQL URL from Doppler: $DATABASE_URL"
     # Check if it's a local or remote PostgreSQL based on the URL
-    if [[ "$POSTGRES_URL" == *"postgres:5432"* ]] || [[ "$POSTGRES_URL" == *"localhost"* ]] || [[ "$POSTGRES_URL" == *"127.0.0.1"* ]]; then
+    if [[ "$DATABASE_URL" == *"postgres:5432"* ]] || [[ "$DATABASE_URL" == *"localhost"* ]] || [[ "$DATABASE_URL" == *"127.0.0.1"* ]]; then
         echo "Detected local PostgreSQL configuration"
     else
         echo "Detected remote PostgreSQL configuration"
@@ -346,10 +346,6 @@ if [ -n "$POSTGRES_URL" ]; then
                     /^[[:space:]]\{8\}condition:/d;
                 }
             }' "${DOCKER_COMPOSE_FILE}"
-
-            # Update DATABASE_URL environment variable in mail_box_indexer
-            echo "Updating DATABASE_URL in mail_box_indexer service..."
-            sed -i "s|DATABASE_URL=postgresql://ponder:password@postgres:5432/mail_box_indexer|DATABASE_URL=${POSTGRES_URL}|g" "${DOCKER_COMPOSE_FILE}"
 
             echo "✓ Configured docker-compose for remote PostgreSQL"
         fi
