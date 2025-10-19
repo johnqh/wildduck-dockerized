@@ -198,7 +198,7 @@ services:
     # All configuration via environment variables (see .env.example)
     environment:
       - NODE_ENV=production
-      - DATABASE_URL=${DATABASE_URL}  # Required from Doppler
+      - POSTGRES_URL=${DATABASE_URL}  # Ponder looks for POSTGRES_URL
       - DATABASE_SCHEMA=${DATABASE_SCHEMA:-public}
       - EMAIL_DOMAIN=${EMAIL_DOMAIN:-0xmail.box}
       - WILDDUCK_ENDPOINT_URL=http://wildduck:8080
