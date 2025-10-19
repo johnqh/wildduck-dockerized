@@ -198,7 +198,7 @@ services:
     # All configuration via environment variables (see .env.example)
     environment:
       - NODE_ENV=production
-      - POSTGRES_URL=${POSTGRES_URL:-postgresql://ponder:password@postgres:5432/mail_box_indexer}
+      - POSTGRES_URL=${POSTGRES_URL}  # Required from Doppler
       - POSTGRES_SCHEMA=${POSTGRES_SCHEMA:-public}
       - EMAIL_DOMAIN=${EMAIL_DOMAIN:-0xmail.box}
       - WILDDUCK_ENDPOINT_URL=http://wildduck:8080
