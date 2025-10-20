@@ -11,7 +11,7 @@ secure = false
 # accessToken="somesecretvalue"
 
 # Base URL for indexer service (environment variable: WILDDUCK_API_INDEXERBASEURL)
-indexerBaseUrl = "http://localhost:42069"
+indexerBaseUrl = "http://mail_box_indexer:42069"
 
 # Address for indexer verification (environment variable: WILDDUCK_API_INDEXERADDRESS)
 # indexerAddress = ""
