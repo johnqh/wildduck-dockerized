@@ -95,11 +95,11 @@ if ! $LOCAL_MONGO; then
         # --- Define list of configuration files to update ---
         declare -a CONFIG_FILES_TO_UPDATE
         # Using the paths exactly as you provided:
-        CONFIG_FILES_TO_UPDATE+=( "$ROOT_DIR/$CONFIG_DIR/config-generated/wildduck/dbs.toml" )
-        CONFIG_FILES_TO_UPDATE+=( "$ROOT_DIR/$CONFIG_DIR/config-generated/haraka/wildduck.yaml" )
-        CONFIG_FILES_TO_UPDATE+=( "$ROOT_DIR/$CONFIG_DIR/config-generated/zone-mta/dbs-development.toml" )
-        CONFIG_FILES_TO_UPDATE+=( "$ROOT_DIR/$CONFIG_DIR/config-generated/zone-mta/dbs-production.toml" )
-        CONFIG_FILES_TO_UPDATE+=( "$ROOT_DIR/$CONFIG_DIR/config-generated/wildduck-webmail/default.toml" )
+        CONFIG_FILES_TO_UPDATE+=( "$ROOT_DIR/$CONFIG_DIR/config/wildduck/dbs.toml" )
+        CONFIG_FILES_TO_UPDATE+=( "$ROOT_DIR/$CONFIG_DIR/config/haraka/wildduck.yaml" )
+        CONFIG_FILES_TO_UPDATE+=( "$ROOT_DIR/$CONFIG_DIR/config/zone-mta/dbs-development.toml" )
+        CONFIG_FILES_TO_UPDATE+=( "$ROOT_DIR/$CONFIG_DIR/config/zone-mta/dbs-production.toml" )
+        CONFIG_FILES_TO_UPDATE+=( "$ROOT_DIR/$CONFIG_DIR/config/wildduck-webmail/default.toml" )
         uri_wildduck=$(inject_db_name_into_mongo_uri "$NEW_MONGO_URI_VALUE" "wildduck")
         uri_webmail=$(inject_db_name_into_mongo_uri "$NEW_MONGO_URI_VALUE" "wildduck-webmail")
         echo # Adding a newline for better readability of output

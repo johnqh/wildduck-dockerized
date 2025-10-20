@@ -4,7 +4,7 @@ PUBLIC_IP=`curl -s https://api.ipify.org`
 
 cwd=$(pwd)
 
-CWD_CONFIG="$cwd/$CONFIG_DIR/config-generated"
+CWD_CONFIG="$cwd/$CONFIG_DIR/config"
 
 # Generate DKIM selector like: "jul2025"
 DKIM_SELECTOR="$(date '+%b' | tr '[:upper:]' '[:lower:]')$(date '+%Y')"
