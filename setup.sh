@@ -488,42 +488,44 @@ sed -i "s|sender = \"zone-mta\"|sender = \"$DB_NAME\"|" ./config-generated/confi
 sed -i "s/#loopSecret=\"secret value\"/loopSecret=\"$SRS_SECRET\"/" ./config-generated/config/wildduck/sender.toml
 sed -i "s/secret=\"super secret key\"/secret=\"$DKIM_SECRET\"/" ./config-generated/config/wildduck/dkim.toml
 
-# Wildduck - api.toml: Copy from wildduck repo, then apply necessary configurations
-echo "Configuring WildDuck API from source repo..."
+# Wildduck - api.toml: Copy from wildduck repo or use default config
+echo "Configuring WildDuck API..."
 if [ -f "../wildduck/config/api.toml" ]; then
     cp "../wildduck/config/api.toml" ./config-generated/config/wildduck/api.toml
     echo "✓ Copied api.toml from wildduck repo"
-
-    # Always apply HMAC secret (needed for inter-service communication)
-    echo "✓ Applying HMAC secret for accessControl"
-    sed -i "s|secret = \"a secret cat\"|secret = \"$HMAC_SECRET\"|" ./config-generated/config/wildduck/api.toml
-
-    # Always set indexerBaseUrl to internal Docker service
-    sed -i "s|indexerBaseUrl = \".*\"|indexerBaseUrl = \"$INDEXER_BASE_URL\"|" ./config-generated/config/wildduck/api.toml
-
-    # Apply optional Doppler overrides if they exist
-    # Note: WILDDUCK_ACCESS_TOKEN and WILDDUCK_ACCESSCONTROL_ENABLED are NOT applied by default
-    # to keep the API accessible without authentication (both source configs have auth disabled)
-    # If you need authentication, manually edit config-generated/config/wildduck/api.toml
-
-    # if [ -n "$WILDDUCK_ACCESS_TOKEN" ]; then
-    #     echo "✓ Applying WILDDUCK_ACCESS_TOKEN from Doppler"
-    #     sed -i "s|# accessToken=\"somesecretvalue\"|accessToken=\"$WILDDUCK_ACCESS_TOKEN\"|" ./config-generated/config/wildduck/api.toml
-    #     sed -i "s|accessToken=\"somesecretvalue\"|accessToken=\"$WILDDUCK_ACCESS_TOKEN\"|" ./config-generated/config/wildduck/api.toml
-    # fi
-
-    if [ -n "$WILDDUCK_ROOT_USERNAME" ]; then
-        echo "✓ Applying WILDDUCK_ROOT_USERNAME from Doppler"
-        sed -i "s|rootUsername = \"admin\"|rootUsername = \"$WILDDUCK_ROOT_USERNAME\"|" ./config-generated/config/wildduck/api.toml
-    fi
-
-    # if [ -n "$WILDDUCK_ACCESSCONTROL_ENABLED" ]; then
-    #     echo "✓ Applying WILDDUCK_ACCESSCONTROL_ENABLED from Doppler"
-    #     sed -i "s|enabled = false|enabled = $WILDDUCK_ACCESSCONTROL_ENABLED|" ./config-generated/config/wildduck/api.toml
-    # fi
 else
-    echo "Warning: ../wildduck/config/api.toml not found. Using default config."
+    echo "✓ Using default api.toml from default-config"
 fi
+
+# Always apply these configurations regardless of source
+echo "✓ Applying HMAC secret for accessControl"
+sed -i "s|secret = \"a secret cat\"|secret = \"$HMAC_SECRET\"|" ./config-generated/config/wildduck/api.toml
+
+echo "✓ Setting indexerBaseUrl to internal Docker service"
+sed -i "s|indexerBaseUrl = \".*\"|indexerBaseUrl = \"$INDEXER_BASE_URL\"|" ./config-generated/config/wildduck/api.toml
+
+# Apply optional Doppler overrides if they exist
+if [ -n "$WILDDUCK_ROOT_USERNAME" ]; then
+    echo "✓ Applying WILDDUCK_ROOT_USERNAME from Doppler"
+    sed -i "s|rootUsername = \"admin\"|rootUsername = \"$WILDDUCK_ROOT_USERNAME\"|" ./config-generated/config/wildduck/api.toml
+    sed -i "s|rootUsername = \"0x[a-fA-F0-9]*\"|rootUsername = \"$WILDDUCK_ROOT_USERNAME\"|" ./config-generated/config/wildduck/api.toml
+fi
+
+# Apply optional Doppler overrides (commented out by default)
+# Note: WILDDUCK_ACCESS_TOKEN and WILDDUCK_ACCESSCONTROL_ENABLED are NOT applied by default
+# to keep the API accessible without authentication (both source configs have auth disabled)
+# If you need authentication, manually edit config-generated/config/wildduck/api.toml
+
+# if [ -n "$WILDDUCK_ACCESS_TOKEN" ]; then
+#     echo "✓ Applying WILDDUCK_ACCESS_TOKEN from Doppler"
+#     sed -i "s|# accessToken=\"somesecretvalue\"|accessToken=\"$WILDDUCK_ACCESS_TOKEN\"|" ./config-generated/config/wildduck/api.toml
+#     sed -i "s|accessToken=\"somesecretvalue\"|accessToken=\"$WILDDUCK_ACCESS_TOKEN\"|" ./config-generated/config/wildduck/api.toml
+# fi
+
+# if [ -n "$WILDDUCK_ACCESSCONTROL_ENABLED" ]; then
+#     echo "✓ Applying WILDDUCK_ACCESSCONTROL_ENABLED from Doppler"
+#     sed -i "s|enabled = false|enabled = $WILDDUCK_ACCESSCONTROL_ENABLED|" ./config-generated/config/wildduck/api.toml
+# fi
 
 sed -i "s|mongo = \".*\"|mongo = \"$MONGO_URL\"|" ./config-generated/config/wildduck/dbs.toml
 
