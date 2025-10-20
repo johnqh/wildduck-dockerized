@@ -10,16 +10,16 @@ secure = false
 # http://localhost:8080/users?accessToken=somesecretvalue
 # accessToken="somesecretvalue"
 
-# Base URL for indexer service (environment variable: WILDDUCK_API_INDEXERBASEURL)
+# Base URL for indexer service (environment variable: APPCONF_api_indexerBaseUrl)
 indexerBaseUrl = "http://mail_box_indexer:42069"
 
-# Address for indexer verification (environment variable: WILDDUCK_API_INDEXERADDRESS)
+# Address for indexer verification (environment variable: APPCONF_api_indexerAddress)
 # indexerAddress = ""
 
-# Enable crypto email processing (environment variable: WILDDUCK_API_CRYPTOEMAILS)
+# Enable crypto email processing (environment variable: APPCONF_api_cryptoEmails)
 cryptoEmails = true
 
-# Username that should receive root privileges (environment variable: WILDDUCK_API_ROOTUSERNAME)
+# Username that should receive root privileges (environment variable: APPCONF_api_rootUsername)
 rootUsername = "0xF6e144A0d1519A0Be5A44563E0b8fFaBa8757723"
 
 [accessControl]

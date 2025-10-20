@@ -39,7 +39,7 @@ services:
       - ./config/wildduck:/wildduck/config
     environment:
       - NODE_ENV=production
-      - WILDDUCK_API_INDEXERBASEURL=http://mail_box_indexer:42069
+      - APPCONF_api_indexerBaseUrl=http://mail_box_indexer:42069
     networks:
       wildduck_network:
         ipv4_address: 172.20.0.10
