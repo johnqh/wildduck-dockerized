@@ -69,14 +69,24 @@ echo "INDEXER_BASE_URL has been set to: $INDEXER_BASE_URL"
 # Doppler Integration for WildDuck Secrets
 echo ""
 echo "--- WildDuck Secrets Configuration ---"
-echo "Enter your Doppler service token for WildDuck."
-echo "(This will download MongoDB URL and other WildDuck secrets from Doppler)"
-echo ""
-read -p "Doppler service token: " DOPPLER_TOKEN
 
-if [ -z "$DOPPLER_TOKEN" ]; then
-    echo "Error: Doppler token cannot be empty"
-    exit 1
+# Check for saved Doppler token
+DOPPLER_TOKEN_FILE=".doppler-token"
+DOPPLER_TOKEN=""
+
+if [ -f "$DOPPLER_TOKEN_FILE" ]; then
+    DOPPLER_TOKEN=$(cat "$DOPPLER_TOKEN_FILE")
+    echo "Found saved Doppler token, validating..."
+else
+    echo "Enter your Doppler service token for WildDuck."
+    echo "(This will download MongoDB URL and other WildDuck secrets from Doppler)"
+    echo ""
+    read -p "Doppler service token: " DOPPLER_TOKEN
+
+    if [ -z "$DOPPLER_TOKEN" ]; then
+        echo "Error: Doppler token cannot be empty"
+        exit 1
+    fi
 fi
 
 echo "Downloading environment variables from Doppler..."
@@ -91,6 +101,11 @@ HTTP_CODE=$(curl -u "$DOPPLER_TOKEN:" \
 
 if [ "$HTTP_CODE" -eq 200 ]; then
     echo "✓ Successfully downloaded secrets from Doppler"
+
+    # Save the validated token for future use
+    echo "$DOPPLER_TOKEN" > "$DOPPLER_TOKEN_FILE"
+    chmod 600 "$DOPPLER_TOKEN_FILE"  # Secure the file
+    echo "✓ Doppler token saved for future runs"
 
     # If .env exists, merge with Doppler taking precedence
     if [ -f .env ]; then
@@ -116,9 +131,63 @@ if [ "$HTTP_CODE" -eq 200 ]; then
     echo "✓ WildDuck secrets configured from Doppler"
 else
     echo "Error: Failed to download from Doppler (HTTP $HTTP_CODE)"
-    echo "Please check your service token and try again"
-    rm -f "$DOPPLER_ENV_FILE"
-    exit 1
+
+    # If we were using a saved token, remove it and ask for a new one
+    if [ -f "$DOPPLER_TOKEN_FILE" ]; then
+        echo "Saved token is invalid, removing it"
+        rm -f "$DOPPLER_TOKEN_FILE"
+        echo ""
+        echo "Please enter your Doppler service token:"
+        read -p "Doppler service token: " DOPPLER_TOKEN
+
+        if [ -z "$DOPPLER_TOKEN" ]; then
+            echo "Error: Doppler token cannot be empty"
+            rm -f "$DOPPLER_ENV_FILE"
+            exit 1
+        fi
+
+        # Retry with the new token
+        echo "Retrying with new token..."
+        HTTP_CODE=$(curl -u "$DOPPLER_TOKEN:" \
+            -w "%{http_code}" \
+            -o "$DOPPLER_ENV_FILE" \
+            -s \
+            https://api.doppler.com/v3/configs/config/secrets/download?format=env)
+
+        if [ "$HTTP_CODE" -eq 200 ]; then
+            echo "✓ Successfully downloaded secrets from Doppler"
+
+            # Save the new validated token
+            echo "$DOPPLER_TOKEN" > "$DOPPLER_TOKEN_FILE"
+            chmod 600 "$DOPPLER_TOKEN_FILE"
+            echo "✓ Doppler token saved for future runs"
+
+            # Merge/create .env file
+            if [ -f .env ]; then
+                echo "Merging Doppler secrets with existing .env file..."
+                cp .env .env.backup
+                cat .env.backup "$DOPPLER_ENV_FILE" | \
+                    awk -F= '!seen[$1]++ || /^[A-Z_]+=/' > .env.temp
+                mv .env.temp .env
+                echo "✓ Merged Doppler secrets (Doppler values take precedence)"
+            else
+                mv "$DOPPLER_ENV_FILE" .env
+                echo "✓ Created .env from Doppler secrets"
+            fi
+
+            rm -f "$DOPPLER_ENV_FILE" .env.backup
+            echo "✓ WildDuck secrets configured from Doppler"
+        else
+            echo "Error: Failed to download from Doppler with new token (HTTP $HTTP_CODE)"
+            echo "Please check your service token and try again"
+            rm -f "$DOPPLER_ENV_FILE"
+            exit 1
+        fi
+    else
+        echo "Please check your service token and try again"
+        rm -f "$DOPPLER_ENV_FILE"
+        exit 1
+    fi
 fi
 
 # Update INDEXER_BASE_URL in .env
