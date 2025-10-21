@@ -6,7 +6,19 @@
 echo "=== Rebuild Haraka Container ==="
 echo ""
 
-cd ./config-generated/ || exit 1
+# Detect if we're in config-generated or root directory
+if [ -f "docker-compose.yml" ] && [ -d "config/haraka" ]; then
+    # Already in config-generated
+    echo "Running from config-generated directory"
+elif [ -d "config-generated" ]; then
+    # In root directory
+    echo "Running from root directory"
+    cd ./config-generated/ || exit 1
+else
+    echo "Error: Cannot find config-generated directory"
+    echo "Please run from wildduck-dockerized or wildduck-dockerized/config-generated"
+    exit 1
+fi
 
 echo "Step 1: Stopping and removing Haraka container..."
 sudo docker compose stop haraka

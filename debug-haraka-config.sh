@@ -5,7 +5,19 @@
 echo "=== Haraka Configuration Debug ==="
 echo ""
 
-cd ./config-generated/ || exit 1
+# Detect if we're in config-generated or root directory
+if [ -f "docker-compose.yml" ] && [ -d "config/haraka" ]; then
+    # Already in config-generated
+    CONFIG_DIR="."
+elif [ -d "config-generated" ]; then
+    # In root directory
+    CONFIG_DIR="./config-generated"
+    cd "$CONFIG_DIR" || exit 1
+else
+    echo "Error: Cannot find config-generated directory"
+    echo "Please run from wildduck-dockerized or wildduck-dockerized/config-generated"
+    exit 1
+fi
 
 echo "1. Checking connection.ini on HOST:"
 echo "   ================================"
