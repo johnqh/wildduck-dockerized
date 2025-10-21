@@ -551,7 +551,9 @@ sed -i "s|mongo = \".*\"|mongo = \"$MONGO_URL\"|" ./config-generated/config/zone
 # ZoneMTA should use the same database name as WildDuck, not a separate "zone-mta" database
 # Extract database name from MONGO_URL (get the part after the last /, strip query parameters)
 DB_NAME=$(echo "$MONGO_URL" | sed 's/.*\///' | sed 's/?.*//')
+echo "Configuring ZoneMTA to use database: $DB_NAME"
 sed -i "s|sender = \"zone-mta\"|sender = \"$DB_NAME\"|" ./config-generated/config/zone-mta/dbs-production.toml
+sed -i "s|sender = \".*\"|sender = \"$DB_NAME\"|" ./config-generated/config/zone-mta/dbs-production.toml
 
 # Wildduck - sender and dkim
 sed -i "s/#loopSecret=\"secret value\"/loopSecret=\"$SRS_SECRET\"/" ./config-generated/config/wildduck/sender.toml
