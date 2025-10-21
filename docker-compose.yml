@@ -84,11 +84,12 @@ services:
       traefik.http.services.wildduck-api-path.loadbalancer.server.port: 8080
 
       # Middleware: CORS headers for API access from localhost and other origins
-      traefik.http.middlewares.wildduck-api-cors.headers.accesscontrolallowmethods: GET,POST,PUT,DELETE,OPTIONS
-      traefik.http.middlewares.wildduck-api-cors.headers.accesscontrolallowheaders: *
-      traefik.http.middlewares.wildduck-api-cors.headers.accesscontrolalloworiginlist: *
+      traefik.http.middlewares.wildduck-api-cors.headers.accesscontrolallowmethods: GET,POST,PUT,DELETE,OPTIONS,PATCH
+      traefik.http.middlewares.wildduck-api-cors.headers.accesscontrolallowheaders: "*"
+      traefik.http.middlewares.wildduck-api-cors.headers.accesscontrolalloworiginlistregex: ".*"
       traefik.http.middlewares.wildduck-api-cors.headers.accesscontrolmaxage: 100
       traefik.http.middlewares.wildduck-api-cors.headers.addvaryheader: true
+      traefik.http.middlewares.wildduck-api-cors.headers.accesscontrolallowcredentials: true
 
       # Middleware: Strip /api prefix before forwarding to WildDuck
       # Converts http(s)://HOSTNAME/api/users → http://wildduck:8080/users
