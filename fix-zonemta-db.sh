@@ -59,15 +59,31 @@ for DBS_FILE in ./config-generated/config/zone-mta/dbs-*.toml; do
 done
 
 echo ""
+echo ""
+echo "Updating WildDuck sender database configuration..."
+
+WILDDUCK_DBS_FILE="./config-generated/config/wildduck/dbs.toml"
+
+if [ -f "$WILDDUCK_DBS_FILE" ]; then
+    echo "Updating WildDuck dbs.toml..."
+    sed -i "s|^sender = \".*\"|sender = \"$DB_NAME\"|" "$WILDDUCK_DBS_FILE"
+
+    echo "New WildDuck configuration:"
+    grep -E "^mongo =|^sender =" "$WILDDUCK_DBS_FILE"
+else
+    echo "Warning: WildDuck dbs.toml not found at $WILDDUCK_DBS_FILE"
+fi
+
+echo ""
 echo "✓ Configuration updated successfully!"
 echo ""
 echo "Restarting services..."
 
 cd ./config-generated/
-sudo docker compose restart zonemta
+sudo docker compose restart wildduck zonemta
 cd ../
 
 echo ""
-echo "✓ ZoneMTA has been restarted with the correct database configuration."
+echo "✓ WildDuck and ZoneMTA have been restarted with the correct database configuration."
 echo ""
 echo "You can now try sending an email again."

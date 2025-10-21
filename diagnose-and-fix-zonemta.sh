@@ -25,8 +25,11 @@ DB_NAME=$(echo "$MONGO_URL" | sed 's/.*\///' | sed 's/?.*//')
 echo "Expected database name: $DB_NAME"
 echo ""
 
-echo "Step 2: Checking ZoneMTA configuration files"
-echo "---------------------------------------------"
+echo "Step 2: Checking database configuration files"
+echo "----------------------------------------------"
+
+echo "A. ZoneMTA Configuration"
+echo "------------------------"
 
 CONFIG_DIR="./config-generated/config/zone-mta"
 
@@ -87,7 +90,52 @@ if [ "$NEEDS_FIX" = true ]; then
     done
 else
     echo ""
-    echo "✓ All configurations look correct!"
+    echo "✓ All ZoneMTA configurations look correct!"
+fi
+echo ""
+
+echo "B. WildDuck Sender Configuration"
+echo "---------------------------------"
+
+WILDDUCK_DBS_FILE="./config-generated/config/wildduck/dbs.toml"
+
+if [ ! -f "$WILDDUCK_DBS_FILE" ]; then
+    echo "Error: WildDuck dbs.toml not found at $WILDDUCK_DBS_FILE"
+else
+    echo ""
+    echo "Checking WildDuck sender database configuration..."
+    echo ""
+
+    WILDDUCK_MONGO=$(grep "^mongo =" "$WILDDUCK_DBS_FILE" | cut -d'"' -f2)
+    WILDDUCK_SENDER=$(grep "^sender =" "$WILDDUCK_DBS_FILE" | cut -d'"' -f2)
+
+    echo "WildDuck mongo URL: $WILDDUCK_MONGO"
+    echo "WildDuck sender database: $WILDDUCK_SENDER"
+
+    if [ "$WILDDUCK_SENDER" != "$DB_NAME" ]; then
+        echo "✗ WRONG! WildDuck sender should be '$DB_NAME' but is '$WILDDUCK_SENDER'"
+        echo ""
+        echo "This is the ROOT CAUSE of your error!"
+        echo "WildDuck is trying to write to database '$WILDDUCK_SENDER' instead of '$DB_NAME'"
+        NEEDS_FIX=true
+    else
+        echo "✓ Correct"
+    fi
+fi
+echo ""
+
+if [ "$NEEDS_FIX" = true ]; then
+    echo "Step 3b: Fixing WildDuck configuration"
+    echo "---------------------------------------"
+
+    if [ -f "$WILDDUCK_DBS_FILE" ]; then
+        echo "Updating WildDuck sender database to: $DB_NAME"
+        sed -i.backup "s|^sender = \".*\"|sender = \"$DB_NAME\"|" "$WILDDUCK_DBS_FILE"
+
+        echo ""
+        echo "New WildDuck configuration:"
+        grep -E "^mongo =|^sender =" "$WILDDUCK_DBS_FILE"
+    fi
 fi
 echo ""
 
@@ -104,10 +152,16 @@ else
 fi
 echo ""
 
-echo "Step 5: Restarting ZoneMTA"
-echo "--------------------------"
-echo "Stopping ZoneMTA..."
-sudo docker compose stop zonemta
+echo "Step 5: Restarting Services"
+echo "----------------------------"
+echo "Stopping ZoneMTA and WildDuck..."
+sudo docker compose stop zonemta wildduck
+
+echo "Starting WildDuck..."
+sudo docker compose start wildduck
+
+echo "Waiting for WildDuck to be ready..."
+sleep 3
 
 echo "Starting ZoneMTA..."
 sudo docker compose start zonemta

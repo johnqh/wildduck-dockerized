@@ -100,6 +100,8 @@ services:
       - redis
     volumes:
       - ./config/zone-mta:/app/config
+    environment:
+      - NODE_ENV=production
     networks:
       - wildduck_network
     labels:

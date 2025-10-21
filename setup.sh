@@ -606,6 +606,11 @@ fi
 
 sed -i "s|mongo = \".*\"|mongo = \"$MONGO_URL\"|" ./config-generated/config/wildduck/dbs.toml
 
+# WildDuck also needs to know which database to use for the outbound queue (sender)
+# This must match the ZoneMTA database name
+echo "Configuring WildDuck sender queue database: $DB_NAME"
+sed -i "s|sender = \".*\"|sender = \"$DB_NAME\"|" ./config-generated/config/wildduck/dbs.toml
+
 # Apply CORS configuration
 echo "Applying CORS configuration to WildDuck API..."
 
