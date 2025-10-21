@@ -672,9 +672,10 @@ sed -i "s/#loopSecret: \"secret value\"/loopSecret: \"$SRS_SECRET\"/" ./config-g
 sed -i "s/secret: \"secret value\"/secret: \"$SRS_SECRET\"/" ./config-generated/config/haraka/wildduck.yaml
 sed -i "s|url: \".*\"|url: \"$MONGO_URL\"|" ./config-generated/config/haraka/wildduck.yaml
 
-# Configure Haraka SMTP greeting banner
+# Configure Haraka SMTP greeting banner (both files)
 echo "  → Setting Haraka SMTP greeting to: $HOSTNAME"
 sed -i "s/greeting=HOSTNAME ESMTP Haraka/greeting=$HOSTNAME ESMTP Haraka/" ./config-generated/config/haraka/connection.ini
+sed -i "s/HOSTNAME ESMTP Haraka/$HOSTNAME ESMTP Haraka/" ./config-generated/config/haraka/smtpgreeting
 echo "  ✓ Haraka configuration complete"
 
 # Mail Box Indexer - Set EMAIL_DOMAIN in docker-compose
