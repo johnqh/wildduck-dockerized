@@ -547,19 +547,44 @@ sed -i "s/secret=\"super secret value\"/secret=\"$ZONEMTA_SECRET\"/" ./config-ge
 sed -i "s/secret=\"secret value\"/secret=\"$SRS_SECRET\"/" ./config-generated/config/zone-mta/plugins/wildduck.toml
 sed -i "s/secret=\"super secret key\"/secret=\"$DKIM_SECRET\"/" ./config-generated/config/zone-mta/plugins/wildduck.toml
 
-# ZoneMTA should use the same database name as WildDuck, not a separate "zone-mta" database
-# Extract database name from MONGO_URL (get the part after the last /, strip query parameters)
-DB_NAME=$(echo "$MONGO_URL" | sed 's/.*\///' | sed 's/?.*//')
-echo "Configuring ZoneMTA to use database: $DB_NAME"
+# ZoneMTA and WildDuck Database Configuration
+# =============================================
+# Both ZoneMTA and WildDuck must use the same database name. ZoneMTA writes to
+# the 'sender' database collection, and WildDuck reads from it for outbound mail.
+# Extract database name from MONGO_URL (get the part after the last /, strip query parameters and trailing slashes)
+DB_NAME=$(echo "$MONGO_URL" | sed 's/.*\///' | sed 's/?.*//' | sed 's/\/$//')
 
-# Update both development and production config files to use the correct database
+# Validate that we successfully extracted a database name
+if [ -z "$DB_NAME" ]; then
+    echo "Error: Could not extract database name from MongoDB URL: $MONGO_URL"
+    echo "Please ensure your MongoDB URL is in the correct format (e.g., mongodb://host:port/database)"
+    exit 1
+fi
+
+echo ""
+echo "=== Database Configuration ==="
+echo "MongoDB URL: $MONGO_URL"
+echo "Database Name: $DB_NAME"
+echo ""
+echo "Configuring ZoneMTA and WildDuck to use database: $DB_NAME"
+
+# Update both development and production ZoneMTA config files to use the correct database
+echo "Updating ZoneMTA database configuration files..."
+ZONEMTA_FILES_UPDATED=0
 for DBS_FILE in ./config-generated/config/zone-mta/dbs-*.toml; do
     if [ -f "$DBS_FILE" ]; then
-        echo "  Updating $(basename "$DBS_FILE")..."
+        echo "  → $(basename "$DBS_FILE"): mongo=$MONGO_URL, sender=$DB_NAME"
         sed -i "s|mongo = \".*\"|mongo = \"$MONGO_URL\"|" "$DBS_FILE"
         sed -i "s|sender = \".*\"|sender = \"$DB_NAME\"|" "$DBS_FILE"
+        ZONEMTA_FILES_UPDATED=$((ZONEMTA_FILES_UPDATED + 1))
     fi
 done
+
+if [ $ZONEMTA_FILES_UPDATED -eq 0 ]; then
+    echo "  Warning: No ZoneMTA database config files found to update"
+else
+    echo "  ✓ Updated $ZONEMTA_FILES_UPDATED ZoneMTA database configuration file(s)"
+fi
 
 # Wildduck - sender and dkim
 sed -i "s/#loopSecret=\"secret value\"/loopSecret=\"$SRS_SECRET\"/" ./config-generated/config/wildduck/sender.toml
@@ -604,12 +629,17 @@ fi
 #     sed -i "s|enabled = false|enabled = $WILDDUCK_ACCESSCONTROL_ENABLED|" ./config-generated/config/wildduck/api.toml
 # fi
 
+# Update WildDuck database configuration
+echo ""
+echo "Updating WildDuck database configuration..."
+echo "  → dbs.toml: mongo=$MONGO_URL, sender=$DB_NAME"
 sed -i "s|mongo = \".*\"|mongo = \"$MONGO_URL\"|" ./config-generated/config/wildduck/dbs.toml
-
-# WildDuck also needs to know which database to use for the outbound queue (sender)
-# This must match the ZoneMTA database name
-echo "Configuring WildDuck sender queue database: $DB_NAME"
 sed -i "s|sender = \".*\"|sender = \"$DB_NAME\"|" ./config-generated/config/wildduck/dbs.toml
+echo "  ✓ Updated WildDuck database configuration"
+
+echo ""
+echo "✓ Database configuration complete"
+echo ""
 
 # Apply CORS configuration
 echo "Applying CORS configuration to WildDuck API..."
