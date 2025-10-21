@@ -72,7 +72,7 @@ services:
       # HTTP API (Port 80) - REST API at /api path
       traefik.http.routers.wildduck-api-path-http.entrypoints: web
       traefik.http.routers.wildduck-api-path-http.rule: Host(`HOSTNAME`) && PathPrefix(`/api`)
-      traefik.http.routers.wildduck-api-path-http.middlewares: wildduck-api-stripprefix@docker
+      traefik.http.routers.wildduck-api-path-http.middlewares: wildduck-api-cors@docker,wildduck-api-stripprefix@docker
       traefik.http.routers.wildduck-api-path-http.priority: 100
       traefik.http.routers.wildduck-api-path-http.service: wildduck-api-path
 
@@ -80,8 +80,15 @@ services:
       traefik.http.routers.wildduck-api-path.entrypoints: websecure
       traefik.http.routers.wildduck-api-path.rule: Host(`HOSTNAME`) && PathPrefix(`/api`)
       traefik.http.routers.wildduck-api-path.tls.certresolver: letsencrypt
-      traefik.http.routers.wildduck-api-path.middlewares: wildduck-api-stripprefix@docker
+      traefik.http.routers.wildduck-api-path.middlewares: wildduck-api-cors@docker,wildduck-api-stripprefix@docker
       traefik.http.services.wildduck-api-path.loadbalancer.server.port: 8080
+
+      # Middleware: CORS headers for API access from localhost and other origins
+      traefik.http.middlewares.wildduck-api-cors.headers.accesscontrolallowmethods: GET,POST,PUT,DELETE,OPTIONS
+      traefik.http.middlewares.wildduck-api-cors.headers.accesscontrolallowheaders: *
+      traefik.http.middlewares.wildduck-api-cors.headers.accesscontrolalloworiginlist: *
+      traefik.http.middlewares.wildduck-api-cors.headers.accesscontrolmaxage: 100
+      traefik.http.middlewares.wildduck-api-cors.headers.addvaryheader: true
 
       # Middleware: Strip /api prefix before forwarding to WildDuck
       # Converts http(s)://HOSTNAME/api/users → http://wildduck:8080/users
