@@ -546,14 +546,20 @@ MONGO_URL=${WILDDUCK_MONGO_URL:-mongodb://mongo:27017/wildduck}
 sed -i "s/secret=\"super secret value\"/secret=\"$ZONEMTA_SECRET\"/" ./config-generated/config/zone-mta/plugins/loop-breaker.toml
 sed -i "s/secret=\"secret value\"/secret=\"$SRS_SECRET\"/" ./config-generated/config/zone-mta/plugins/wildduck.toml
 sed -i "s/secret=\"super secret key\"/secret=\"$DKIM_SECRET\"/" ./config-generated/config/zone-mta/plugins/wildduck.toml
-sed -i "s|mongo = \".*\"|mongo = \"$MONGO_URL\"|" ./config-generated/config/zone-mta/dbs-production.toml
 
 # ZoneMTA should use the same database name as WildDuck, not a separate "zone-mta" database
 # Extract database name from MONGO_URL (get the part after the last /, strip query parameters)
 DB_NAME=$(echo "$MONGO_URL" | sed 's/.*\///' | sed 's/?.*//')
 echo "Configuring ZoneMTA to use database: $DB_NAME"
-sed -i "s|sender = \"zone-mta\"|sender = \"$DB_NAME\"|" ./config-generated/config/zone-mta/dbs-production.toml
-sed -i "s|sender = \".*\"|sender = \"$DB_NAME\"|" ./config-generated/config/zone-mta/dbs-production.toml
+
+# Update both development and production config files to use the correct database
+for DBS_FILE in ./config-generated/config/zone-mta/dbs-*.toml; do
+    if [ -f "$DBS_FILE" ]; then
+        echo "  Updating $(basename "$DBS_FILE")..."
+        sed -i "s|mongo = \".*\"|mongo = \"$MONGO_URL\"|" "$DBS_FILE"
+        sed -i "s|sender = \".*\"|sender = \"$DB_NAME\"|" "$DBS_FILE"
+    fi
+done
 
 # Wildduck - sender and dkim
 sed -i "s/#loopSecret=\"secret value\"/loopSecret=\"$SRS_SECRET\"/" ./config-generated/config/wildduck/sender.toml

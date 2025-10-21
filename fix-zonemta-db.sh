@@ -42,15 +42,21 @@ echo ""
 echo "Current ZoneMTA database configuration:"
 grep -E "^mongo =|^sender =" "$CONFIG_FILE"
 
-# Update the sender field
+# Update both development and production config files
 echo ""
-echo "Updating sender field to: $DB_NAME"
-sed -i "s|sender = \".*\"|sender = \"$DB_NAME\"|" "$CONFIG_FILE"
+echo "Updating ZoneMTA database configuration files..."
 
-# Verify the change
-echo ""
-echo "New ZoneMTA database configuration:"
-grep -E "^mongo =|^sender =" "$CONFIG_FILE"
+for DBS_FILE in ./config-generated/config/zone-mta/dbs-*.toml; do
+    if [ -f "$DBS_FILE" ]; then
+        echo ""
+        echo "Updating $(basename "$DBS_FILE")..."
+        sed -i "s|mongo = \".*\"|mongo = \"$MONGO_URL\"|" "$DBS_FILE"
+        sed -i "s|sender = \".*\"|sender = \"$DB_NAME\"|" "$DBS_FILE"
+
+        echo "New configuration:"
+        grep -E "^mongo =|^sender =" "$DBS_FILE"
+    fi
+done
 
 echo ""
 echo "✓ Configuration updated successfully!"
