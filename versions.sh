@@ -56,12 +56,31 @@ function get_container_version {
     echo "$image_info (created: $created)"
 }
 
+# Function to get container uptime/status
+function get_container_uptime {
+    local container_id=$1
+
+    if [ -z "$container_id" ]; then
+        echo "Not running"
+        return
+    fi
+
+    # Get status from docker ps
+    local status=$(sudo docker ps -a --filter "id=$container_id" --format "{{.Status}}" 2>/dev/null)
+
+    if [ -z "$status" ]; then
+        echo "Unknown"
+    else
+        echo "$status"
+    fi
+}
+
 # Function to get detailed version from inside container if possible
 function get_app_version {
     local container_name=$1
     local service=$2
     local version_output=""
-    
+
     case $service in
         "wildduck")
             version_output=$(sudo docker exec $container_name node -e "console.log(require('/wildduck/package.json').version)" 2>/dev/null || echo "N/A")
@@ -96,7 +115,7 @@ function get_app_version {
             version_output=$(sudo docker exec $container_name traefik version 2>/dev/null | grep Version | awk '{print $2}' || echo "N/A")
             ;;
     esac
-    
+
     echo "$version_output"
 }
 
@@ -145,35 +164,36 @@ declare -A services=(
 )
 
 # Display version information
-echo "----------------------------------------"
-printf "%-20s %-50s %-20s\n" "SERVICE" "IMAGE" "APP VERSION"
-echo "----------------------------------------"
+echo "------------------------------------------------------------------------------------------------------------------------"
+printf "%-20s %-35s %-20s %-40s\n" "SERVICE" "IMAGE" "APP VERSION" "STATUS / UPTIME"
+echo "------------------------------------------------------------------------------------------------------------------------"
 
 for service_key in wildduck zonemta haraka rspamd mongo redis postgres mail_box_indexer traefik; do
     service_name=${services[$service_key]}
-    
+
     # Try different container name patterns
     container_found=false
     for pattern in "${CONFIG_DIR##*/}-${service_key}-1" "${CONFIG_DIR##*/}_${service_key}_1" "${service_key}"; do
-        container_id=$(sudo docker ps --filter "name=$pattern" --format "{{.ID}}" 2>/dev/null | head -1)
-        
+        container_id=$(sudo docker ps -a --filter "name=$pattern" --format "{{.ID}}" 2>/dev/null | head -1)
+
         if [ -n "$container_id" ]; then
             container_found=true
-            container_name=$(sudo docker ps --filter "id=$container_id" --format "{{.Names}}" 2>/dev/null)
+            container_name=$(sudo docker ps -a --filter "id=$container_id" --format "{{.Names}}" 2>/dev/null)
             image=$(sudo docker inspect $container_id --format='{{.Config.Image}}' 2>/dev/null)
             app_version=$(get_app_version $container_name $service_key)
-            
-            printf "%-20s %-50s %-20s\n" "$service_name" "$image" "$app_version"
+            uptime=$(get_container_uptime $container_id)
+
+            printf "%-20s %-35s %-20s %-40s\n" "$service_name" "$image" "$app_version" "$uptime"
             break
         fi
     done
-    
+
     if [ "$container_found" = false ]; then
-        printf "%-20s %-50s %-20s\n" "$service_name" "Not running" "-"
+        printf "%-20s %-35s %-20s %-40s\n" "$service_name" "Not running" "-" "-"
     fi
 done
 
-echo "----------------------------------------"
+echo "------------------------------------------------------------------------------------------------------------------------"
 echo ""
 
 # Show summary statistics
