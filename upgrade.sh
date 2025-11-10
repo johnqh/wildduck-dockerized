@@ -48,6 +48,74 @@ function find_config_dir {
     fi
 }
 
+# Function to update environment variables from Doppler
+function update_doppler_secrets {
+    print_step "Updating environment variables from Doppler..."
+    echo ""
+
+    # Save current directory
+    CURRENT_DIR=$(pwd)
+
+    # Go back to root directory where .doppler-token should be
+    cd ..
+
+    DOPPLER_TOKEN_FILE=".doppler-token"
+    DOPPLER_TOKEN=""
+
+    if [ -f "$DOPPLER_TOKEN_FILE" ]; then
+        DOPPLER_TOKEN=$(cat "$DOPPLER_TOKEN_FILE")
+        print_info "Found saved Doppler token"
+    else
+        print_warning "No Doppler token found at $DOPPLER_TOKEN_FILE"
+        print_info "Skipping Doppler update. To enable, save your token to $DOPPLER_TOKEN_FILE"
+        cd "$CURRENT_DIR"
+        return 0
+    fi
+
+    # Download from Doppler to a temporary file
+    DOPPLER_ENV_FILE=".env.doppler"
+    HTTP_CODE=$(curl -u "$DOPPLER_TOKEN:" \
+        -w "%{http_code}" \
+        -o "$DOPPLER_ENV_FILE" \
+        -s \
+        https://api.doppler.com/v3/configs/config/secrets/download?format=env)
+
+    if [ "$HTTP_CODE" -eq 200 ]; then
+        print_info "✓ Successfully downloaded latest secrets from Doppler"
+
+        # Update .env in root directory
+        if [ -f .env ]; then
+            print_info "Updating .env with latest Doppler secrets..."
+            cp .env .env.backup
+
+            # Merge: Keep existing .env, then overwrite with Doppler values
+            cat .env.backup "$DOPPLER_ENV_FILE" | \
+                awk -F= '!seen[$1]++ || /^[A-Z_]+=/' > .env.temp
+            mv .env.temp .env
+            rm -f .env.backup
+
+            print_info "✓ Updated .env with Doppler secrets"
+        else
+            mv "$DOPPLER_ENV_FILE" .env
+            print_info "✓ Created .env from Doppler secrets"
+        fi
+
+        # Clean up temporary file
+        rm -f "$DOPPLER_ENV_FILE"
+
+        print_info "✓ Environment variables updated from Doppler"
+    else
+        print_error "Failed to download from Doppler (HTTP $HTTP_CODE)"
+        print_warning "Token may be invalid or expired. Please update $DOPPLER_TOKEN_FILE"
+        print_info "Continuing with existing environment variables..."
+        rm -f "$DOPPLER_ENV_FILE"
+    fi
+
+    # Return to config directory
+    cd "$CURRENT_DIR"
+    echo ""
+}
+
 echo ""
 print_header "WildDuck Dockerized - Container Upgrade"
 echo ""
@@ -88,19 +156,23 @@ if [[ ! $REPLY =~ ^[Yy]$ ]]; then
 fi
 echo ""
 
-# Step 1: Stop containers
-print_step "Step 1/3: Stopping containers..."
+# Step 1: Update Doppler secrets
+print_step "Step 1/4: Updating environment variables from Doppler..."
+update_doppler_secrets
+
+# Step 2: Stop containers
+print_step "Step 2/4: Stopping containers..."
 sudo docker compose down
 echo ""
 
-# Step 2: Pull latest images
-print_step "Step 2/3: Pulling latest container images..."
+# Step 3: Pull latest images
+print_step "Step 3/4: Pulling latest container images..."
 echo ""
 sudo docker compose pull
 echo ""
 
-# Step 3: Start containers
-print_step "Step 3/3: Starting containers with new images..."
+# Step 4: Start containers
+print_step "Step 4/4: Starting containers with new images..."
 sudo docker compose up -d
 echo ""
 
@@ -124,6 +196,7 @@ echo ""
 print_header "✓ Upgrade completed successfully!"
 echo ""
 print_info "All containers have been updated to their latest versions."
+print_info "Environment variables have been refreshed from Doppler."
 print_info "Configuration files were not modified."
 echo ""
 print_info "Useful commands:"
