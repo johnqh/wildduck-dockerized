@@ -146,6 +146,7 @@ services:
   rspamd:
     image: nodemailer/rspamd
     restart: unless-stopped
+    user: "_rspamd"  # Run as unprivileged user for security
     depends_on:
       - redis
     volumes:
