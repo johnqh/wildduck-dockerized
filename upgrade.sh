@@ -157,11 +157,11 @@ fi
 echo ""
 
 # Step 1: Update Doppler secrets
-print_step "Step 1/5: Updating environment variables from Doppler..."
+print_step "Step 1/6: Updating environment variables from Doppler..."
 update_doppler_secrets
 
 # Step 2: Update docker-compose.yml with latest configuration
-print_step "Step 2/5: Updating docker-compose.yml configuration..."
+print_step "Step 2/6: Updating docker-compose.yml configuration..."
 
 # Extract current hostname from existing docker-compose.yml
 CURRENT_HOSTNAME=$(grep -m 1 "traefik.tcp.routers.wildduck-imaps.rule: HostSNI(" docker-compose.yml | sed -n "s/.*HostSNI(\`\(.*\)\`).*/\1/p" || echo "")
@@ -197,19 +197,53 @@ else
 fi
 echo ""
 
-# Step 3: Stop containers
-print_step "Step 3/5: Stopping containers..."
+# Step 3: Update configuration files from default-config
+print_step "Step 3/6: Updating configuration files..."
+
+# Go to root directory
+cd ..
+
+if [ -d "default-config" ]; then
+    # Update rspamd configuration (safe to overwrite, not typically customized)
+    if [ -d "default-config/rspamd" ]; then
+        print_info "Updating rspamd configuration..."
+        mkdir -p "$CONFIG_DIR/config/rspamd/override.d"
+        mkdir -p "$CONFIG_DIR/config/rspamd/local.d"
+
+        # Copy override.d files (these have highest priority)
+        cp -r default-config/rspamd/override.d/* "$CONFIG_DIR/config/rspamd/override.d/" 2>/dev/null || true
+
+        # Copy local.d files
+        cp -r default-config/rspamd/local.d/* "$CONFIG_DIR/config/rspamd/local.d/" 2>/dev/null || true
+
+        # Copy worker config
+        cp default-config/rspamd/worker-normal.conf "$CONFIG_DIR/config/rspamd/" 2>/dev/null || true
+
+        print_info "✓ Rspamd configuration updated"
+    fi
+
+    print_info "✓ Configuration files updated"
+else
+    print_warning "default-config directory not found, skipping config update"
+fi
+
+# Return to config directory
+cd "$CONFIG_DIR"
+echo ""
+
+# Step 4: Stop containers
+print_step "Step 4/6: Stopping containers..."
 sudo docker compose down
 echo ""
 
-# Step 4: Pull latest images
-print_step "Step 4/5: Pulling latest container images..."
+# Step 5: Pull latest images
+print_step "Step 5/6: Pulling latest container images..."
 echo ""
 sudo docker compose pull
 echo ""
 
-# Step 5: Start containers
-print_step "Step 5/5: Starting containers with new images..."
+# Step 6: Start containers
+print_step "Step 6/6: Starting containers with new images..."
 sudo docker compose up -d
 echo ""
 
