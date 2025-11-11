@@ -180,8 +180,8 @@ cp docker-compose.yml docker-compose.yml.backup
 # Copy latest docker-compose.yml from root
 cd ..
 if [ -f "docker-compose.yml" ]; then
-    cp docker-compose.yml "$DEPLOY_DIR/docker-compose.yml"
-    cd "$DEPLOY_DIR"
+    cp docker-compose.yml "$CONFIG_DIR/docker-compose.yml"
+    cd "$CONFIG_DIR"
 
     # Replace HOSTNAME placeholder with actual hostname
     sed -i "s|HOSTNAME|$CURRENT_HOSTNAME|g" docker-compose.yml
@@ -192,7 +192,7 @@ if [ -f "docker-compose.yml" ]; then
 
     print_info "✓ Updated docker-compose.yml with hostname: $CURRENT_HOSTNAME"
 else
-    cd "$DEPLOY_DIR"
+    cd "$CONFIG_DIR"
     print_warning "Root docker-compose.yml not found, skipping update"
 fi
 echo ""
