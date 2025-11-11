@@ -157,22 +157,59 @@ fi
 echo ""
 
 # Step 1: Update Doppler secrets
-print_step "Step 1/4: Updating environment variables from Doppler..."
+print_step "Step 1/5: Updating environment variables from Doppler..."
 update_doppler_secrets
 
-# Step 2: Stop containers
-print_step "Step 2/4: Stopping containers..."
+# Step 2: Update docker-compose.yml with latest configuration
+print_step "Step 2/5: Updating docker-compose.yml configuration..."
+
+# Extract current hostname from existing docker-compose.yml
+CURRENT_HOSTNAME=$(grep -m 1 "traefik.tcp.routers.wildduck-imaps.rule: HostSNI(" docker-compose.yml | sed -n "s/.*HostSNI(\`\(.*\)\`).*/\1/p" || echo "")
+
+if [ -z "$CURRENT_HOSTNAME" ] || [ "$CURRENT_HOSTNAME" = "HOSTNAME" ]; then
+    # Fallback: try to get from environment or use default
+    CURRENT_HOSTNAME="${EMAIL_DOMAIN:-0xmail.box}"
+    print_warning "Could not detect hostname from docker-compose.yml, using: $CURRENT_HOSTNAME"
+else
+    print_info "Detected hostname: $CURRENT_HOSTNAME"
+fi
+
+# Backup current docker-compose.yml
+cp docker-compose.yml docker-compose.yml.backup
+
+# Copy latest docker-compose.yml from root
+cd ..
+if [ -f "docker-compose.yml" ]; then
+    cp docker-compose.yml "$DEPLOY_DIR/docker-compose.yml"
+    cd "$DEPLOY_DIR"
+
+    # Replace HOSTNAME placeholder with actual hostname
+    sed -i "s|HOSTNAME|$CURRENT_HOSTNAME|g" docker-compose.yml
+
+    # Replace cert paths
+    sed -i "s|./certs/HOSTNAME-key.pem|./certs/$CURRENT_HOSTNAME-key.pem|g" docker-compose.yml
+    sed -i "s|./certs/HOSTNAME.pem|./certs/$CURRENT_HOSTNAME.pem|g" docker-compose.yml
+
+    print_info "✓ Updated docker-compose.yml with hostname: $CURRENT_HOSTNAME"
+else
+    cd "$DEPLOY_DIR"
+    print_warning "Root docker-compose.yml not found, skipping update"
+fi
+echo ""
+
+# Step 3: Stop containers
+print_step "Step 3/5: Stopping containers..."
 sudo docker compose down
 echo ""
 
-# Step 3: Pull latest images
-print_step "Step 3/4: Pulling latest container images..."
+# Step 4: Pull latest images
+print_step "Step 4/5: Pulling latest container images..."
 echo ""
 sudo docker compose pull
 echo ""
 
-# Step 4: Start containers
-print_step "Step 4/4: Starting containers with new images..."
+# Step 5: Start containers
+print_step "Step 5/5: Starting containers with new images..."
 sudo docker compose up -d
 echo ""
 
