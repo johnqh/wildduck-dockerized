@@ -146,8 +146,7 @@ services:
   rspamd:
     image: nodemailer/rspamd
     restart: unless-stopped
-    # Note: nodemailer/rspamd image handles user configuration internally
-    # The container runs rspamd as the appropriate non-root user via its entrypoint
+    user: "11333:11333"  # Run as _rspamd user (numeric UID:GID for portability)
     depends_on:
       - redis
     volumes:
