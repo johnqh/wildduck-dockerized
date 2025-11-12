@@ -233,6 +233,29 @@ if [ -d "default-config" ]; then
         cp default-config/zone-mta/plugins/*.js "$CONFIG_DIR/config/zone-mta/plugins/" 2>/dev/null || true
         cp default-config/zone-mta/plugins/*.toml "$CONFIG_DIR/config/zone-mta/plugins/" 2>/dev/null || true
 
+        # Replace placeholders in wildduck.toml with actual values
+        if [ -f "$CONFIG_DIR/config/zone-mta/plugins/wildduck.toml" ]; then
+            print_info "Updating WildDuck plugin configuration..."
+
+            # Replace hostname and domain placeholders
+            sed -i "s/hostname=\"email.example.com\"/hostname=\"$CURRENT_HOSTNAME\"/" "$CONFIG_DIR/config/zone-mta/plugins/wildduck.toml"
+            sed -i "s/rewriteDomain=\"email.example.com\"/rewriteDomain=\"$CURRENT_HOSTNAME\"/" "$CONFIG_DIR/config/zone-mta/plugins/wildduck.toml"
+
+            # Extract and preserve existing secrets if they exist
+            EXISTING_SRS_SECRET=$(grep -m 1 "secret=" "$CONFIG_DIR/config/zone-mta/plugins/wildduck.toml" 2>/dev/null | head -1 | sed -n 's/.*secret="\([^"]*\)".*/\1/p' || echo "")
+            EXISTING_DKIM_SECRET=$(grep "secret=" "$CONFIG_DIR/config/zone-mta/plugins/wildduck.toml" 2>/dev/null | tail -1 | sed -n 's/.*secret="\([^"]*\)".*/\1/p' || echo "")
+
+            if [ -n "$EXISTING_SRS_SECRET" ] && [ "$EXISTING_SRS_SECRET" != "secret value" ]; then
+                sed -i "s/secret=\"secret value\"/secret=\"$EXISTING_SRS_SECRET\"/" "$CONFIG_DIR/config/zone-mta/plugins/wildduck.toml"
+            fi
+
+            if [ -n "$EXISTING_DKIM_SECRET" ] && [ "$EXISTING_DKIM_SECRET" != "super secret key" ]; then
+                sed -i "s/secret=\"super secret key\"/secret=\"$EXISTING_DKIM_SECRET\"/" "$CONFIG_DIR/config/zone-mta/plugins/wildduck.toml"
+            fi
+
+            print_info "✓ WildDuck plugin configuration updated with hostname: $CURRENT_HOSTNAME"
+        fi
+
         print_info "✓ ZoneMTA plugins updated"
     fi
 

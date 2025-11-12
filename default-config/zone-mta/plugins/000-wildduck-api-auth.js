@@ -40,7 +40,7 @@ module.exports.init = function(app, done) {
             const response = await axios.post(`${wildduckApiUrl}/authenticate`, {
                 username: auth.username,
                 password: auth.password,
-                scope: 'smtp',
+                scope: 'master',  // Use 'master' scope to allow master password for SMTP
                 protocol: 'SMTP',
                 sess: session.id,
                 ip: session.remoteAddress
