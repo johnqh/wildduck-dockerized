@@ -14,7 +14,8 @@ module.exports.title = 'WildDuck API Authentication';
 module.exports.init = function(app, done) {
 
     // Get configuration (check multiple possible config paths)
-    const config = app.config['./000-wildduck-api-auth'] ||
+    const config = app.config['000-wildduck-api-auth'] ||
+                   app.config['./000-wildduck-api-auth'] ||
                    app.config['modules/000-wildduck-api-auth'] ||
                    app.config.wildduckApiAuth ||
                    {};

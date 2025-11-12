@@ -108,6 +108,7 @@ services:
       - redis
     volumes:
       - ./config/zone-mta:/app/config
+      - ./config/zone-mta/plugins:/app/plugins  # Custom plugins directory
     environment:
       - NODE_ENV=production
     networks:
