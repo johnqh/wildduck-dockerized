@@ -13,18 +13,16 @@ const axios = require('axios');
 module.exports.title = 'WildDuck API Authentication';
 module.exports.init = function(app, done) {
 
-    // Get configuration
-    const config = app.config['modules/000-wildduck-api-auth'] || app.config.wildduckApiAuth || {};
+    // Get configuration (check multiple possible config paths)
+    const config = app.config['./000-wildduck-api-auth'] ||
+                   app.config['modules/000-wildduck-api-auth'] ||
+                   app.config.wildduckApiAuth ||
+                   {};
 
     const wildduckApiUrl = config.apiUrl || process.env.WILDDUCK_API_URL || 'http://wildduck:8080';
-    const enabled = config.enabled !== false; // Enabled by default
-
-    if (!enabled) {
-        app.logger.info('[WildDuck API Auth] Plugin disabled in configuration');
-        return done();
-    }
 
     app.logger.info('[WildDuck API Auth] Plugin initialized, API URL: ' + wildduckApiUrl);
+    app.logger.info('[WildDuck API Auth] Config: ' + JSON.stringify(config));
 
     /**
      * Hook into SMTP AUTH command
