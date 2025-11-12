@@ -135,6 +135,9 @@ if [ -z "$CONFIG_DIR" ]; then
     exit 1
 fi
 
+# Convert to absolute path for safety
+CONFIG_DIR=$(cd "$CONFIG_DIR" && pwd)
+
 print_info "Configuration directory: $CONFIG_DIR"
 echo ""
 
@@ -181,20 +184,19 @@ cp docker-compose.yml docker-compose.yml.backup
 cd ..
 if [ -f "docker-compose.yml" ]; then
     cp docker-compose.yml "$CONFIG_DIR/docker-compose.yml"
-    cd "$CONFIG_DIR"
 
-    # Replace HOSTNAME placeholder with actual hostname
-    sed -i "s|HOSTNAME|$CURRENT_HOSTNAME|g" docker-compose.yml
+    # Replace HOSTNAME placeholder with actual hostname (use absolute path)
+    sed -i "s|HOSTNAME|$CURRENT_HOSTNAME|g" "$CONFIG_DIR/docker-compose.yml"
 
-    # Replace cert paths
-    sed -i "s|./certs/HOSTNAME-key.pem|./certs/$CURRENT_HOSTNAME-key.pem|g" docker-compose.yml
-    sed -i "s|./certs/HOSTNAME.pem|./certs/$CURRENT_HOSTNAME.pem|g" docker-compose.yml
+    # Replace cert paths (use absolute path)
+    sed -i "s|./certs/HOSTNAME-key.pem|./certs/$CURRENT_HOSTNAME-key.pem|g" "$CONFIG_DIR/docker-compose.yml"
+    sed -i "s|./certs/HOSTNAME.pem|./certs/$CURRENT_HOSTNAME.pem|g" "$CONFIG_DIR/docker-compose.yml"
 
     print_info "✓ Updated docker-compose.yml with hostname: $CURRENT_HOSTNAME"
 else
-    cd "$CONFIG_DIR"
     print_warning "Root docker-compose.yml not found, skipping update"
 fi
+cd "$CONFIG_DIR"
 echo ""
 
 # Step 3: Update configuration files from default-config
