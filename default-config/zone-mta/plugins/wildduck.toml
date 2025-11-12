@@ -2,7 +2,9 @@
 enabled = ["receiver", "sender", "main"]
 
 # to which SMTP interfaces this plugin applies to. Use "*" for all interfaces
-interfaces = ["feeder"]
+# NOTE: "feeder" is excluded because authentication is handled by 000-wildduck-api-auth plugin
+# The wildduck plugin still handles message submission, DKIM, etc. for other interfaces
+interfaces = []
 
 # optional hostname to be used in headers
 # defaults to os.hostname()
