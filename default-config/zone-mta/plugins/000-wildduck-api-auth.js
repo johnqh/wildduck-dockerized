@@ -13,8 +13,8 @@ const axios = require('axios');
 module.exports.title = 'WildDuck API Authentication';
 module.exports.init = function(app, done) {
 
-    // Debug: log all config keys to find the correct one
-    app.logger.info('[WildDuck API Auth] Available config keys: ' + Object.keys(app.config).filter(k => k.includes('wildduck') || k.includes('000')).join(', '));
+    // Debug: log ALL config keys to diagnose the issue
+    app.logger.info('[WildDuck API Auth] ALL config keys: ' + Object.keys(app.config).join(', '));
 
     // Get configuration (check multiple possible config paths)
     const config = app.config['000-wildduck-api-auth'] ||
