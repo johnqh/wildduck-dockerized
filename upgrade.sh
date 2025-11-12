@@ -222,6 +222,18 @@ if [ -d "default-config" ]; then
         print_info "✓ Rspamd configuration updated"
     fi
 
+    # Update ZoneMTA plugins (safe to overwrite, contains authentication logic)
+    if [ -d "default-config/zone-mta/plugins" ]; then
+        print_info "Updating ZoneMTA plugins..."
+        mkdir -p "$CONFIG_DIR/config/zone-mta/plugins"
+
+        # Copy plugin files (.js and .toml)
+        cp default-config/zone-mta/plugins/*.js "$CONFIG_DIR/config/zone-mta/plugins/" 2>/dev/null || true
+        cp default-config/zone-mta/plugins/*.toml "$CONFIG_DIR/config/zone-mta/plugins/" 2>/dev/null || true
+
+        print_info "✓ ZoneMTA plugins updated"
+    fi
+
     print_info "✓ Configuration files updated"
 else
     print_warning "default-config directory not found, skipping config update"
