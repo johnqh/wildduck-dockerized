@@ -13,13 +13,14 @@ const axios = require('axios');
 module.exports.title = 'WildDuck API Authentication';
 module.exports.init = function(app, done) {
 
+    // Debug: log all config keys to find the correct one
+    app.logger.info('[WildDuck API Auth] Available config keys: ' + Object.keys(app.config).filter(k => k.includes('wildduck') || k.includes('000')).join(', '));
+
     // Get configuration (check multiple possible config paths)
-    // ZoneMTA loads plugins with 'plugins/' prefix, so check that first
-    const config = app.config['plugins/000-wildduck-api-auth'] ||
-                   app.config['000-wildduck-api-auth'] ||
+    const config = app.config['000-wildduck-api-auth'] ||
+                   app.config['plugins/000-wildduck-api-auth'] ||
                    app.config['./000-wildduck-api-auth'] ||
-                   app.config['modules/000-wildduck-api-auth'] ||
-                   app.config.wildduckApiAuth ||
+                   app.config['config/000-wildduck-api-auth'] ||
                    {};
 
     const wildduckApiUrl = config.apiUrl || process.env.WILDDUCK_API_URL || 'http://wildduck:8080';

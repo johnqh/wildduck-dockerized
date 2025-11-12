@@ -2,7 +2,7 @@
 # This plugin authenticates SMTP users via WildDuck's /authenticate endpoint
 # which ensures authentication goes through the IndexerHelper
 
-["plugins/000-wildduck-api-auth"]
+["000-wildduck-api-auth"]
 # Which contexts should load this plugin
 enabled = ["receiver", "sender", "main"]
 
