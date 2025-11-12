@@ -1,0 +1,14 @@
+# WildDuck API Authentication Plugin Configuration
+# This plugin authenticates SMTP users via WildDuck's /authenticate endpoint
+# which ensures authentication goes through the IndexerHelper
+
+["modules/000-wildduck-api-auth"]
+# Enable the plugin
+enabled = true
+
+# WildDuck API base URL (internal Docker service name)
+apiUrl = "http://wildduck:8080"
+
+# Which SMTP interfaces should use API authentication
+# Use ["*"] for all interfaces, or specify specific ones like ["feeder"]
+interfaces = ["feeder"]
