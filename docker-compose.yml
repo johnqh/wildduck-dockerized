@@ -10,6 +10,14 @@ volumes:
   postgres:   # Blockchain indexing data
   traefik:    # Traefik configuration and certificates
 
+# Default logging configuration for all services
+# Prevents logs from growing indefinitely and consuming disk space
+x-logging: &default-logging
+  driver: json-file
+  options:
+    max-size: "10m"   # Maximum size of each log file
+    max-file: "3"     # Keep 3 log files (30MB total per container)
+
 # Custom network with static IP allocation
 networks:
   wildduck_network:
@@ -26,6 +34,7 @@ services:
   wildduck:
     image: johnqh/wildduck:latest
     restart: unless-stopped
+    logging: *default-logging
     ports:
       - "127.0.0.1:8080:8080"
       # - "143:143" # for local testing
@@ -101,6 +110,7 @@ services:
   zonemta:
     image: ghcr.io/zone-eu/zonemta-wildduck:1.32.20
     restart: unless-stopped
+    logging: *default-logging
     # ports:
     #   - "587:587" # Uncomment for local testing
     depends_on:
@@ -128,6 +138,7 @@ services:
   haraka:
     image: johnqh/haraka:latest
     restart: unless-stopped
+    logging: *default-logging
     ports:
       - "25:25"  # SMTP port must be exposed directly (not via Traefik)
     depends_on:
@@ -147,6 +158,7 @@ services:
   rspamd:
     image: nodemailer/rspamd
     restart: unless-stopped
+    logging: *default-logging
     user: "11333:11333"  # Run as _rspamd user (numeric UID:GID for portability)
     depends_on:
       - redis
@@ -163,6 +175,7 @@ services:
   mongo:
     image: mongo
     restart: unless-stopped
+    logging: *default-logging
     volumes:
       - mongo:/data/db  # Persistent storage for database
     networks:
@@ -180,6 +193,7 @@ services:
   redis:
     image: redis:alpine
     restart: unless-stopped
+    logging: *default-logging
     volumes:
       - redis:/data  # Persistent storage for Redis data
     networks:
@@ -198,6 +212,7 @@ services:
   mail_box_indexer:
     image: johnqh/mail_box_indexer:latest
     restart: unless-stopped
+    logging: *default-logging
     # ports:
     #   - "127.0.0.1:42069:42069" # Uncomment for local API access
     depends_on:
@@ -271,6 +286,7 @@ services:
   postgres:
     image: postgres:15
     restart: unless-stopped
+    logging: *default-logging
     environment:
       POSTGRES_DB: mail_box_indexer         # Database name
       POSTGRES_USER: ponder                 # Database user
@@ -295,6 +311,7 @@ services:
   traefik:
     image: traefik:3.3.4
     restart: unless-stopped
+    logging: *default-logging
     command:
       # Entry points (listening ports)
       - "--entrypoints.web.address=:80"           # HTTP
