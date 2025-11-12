@@ -13,15 +13,9 @@ const axios = require('axios');
 module.exports.title = 'WildDuck API Authentication';
 module.exports.init = function(app, done) {
 
-    // Debug: log ALL config keys to diagnose the issue
-    app.logger.info('[WildDuck API Auth] ALL config keys: ' + Object.keys(app.config).join(', '));
-
-    // Get configuration (check multiple possible config paths)
-    const config = app.config['000-wildduck-api-auth'] ||
-                   app.config['plugins/000-wildduck-api-auth'] ||
-                   app.config['./000-wildduck-api-auth'] ||
-                   app.config['config/000-wildduck-api-auth'] ||
-                   {};
+    // app.config is already scoped to this plugin's configuration section
+    // So we can access config values directly without a nested key
+    const config = app.config || {};
 
     const wildduckApiUrl = config.apiUrl || process.env.WILDDUCK_API_URL || 'http://wildduck:8080';
 
