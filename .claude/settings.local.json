@@ -24,7 +24,13 @@
       "Bash(dig:*)",
       "Bash(host:*)",
       "Bash(timeout 5 telnet:*)",
-      "WebSearch"
+      "WebSearch",
+      "Bash(docker pull:*)",
+      "Bash(docker run:*)",
+      "Bash(docker inspect:*)",
+      "WebFetch(domain:hub.docker.com)",
+      "Bash(ssh root@srv858831.hstgr.cloud \"cd ~/0xmail/wildduck-dockerized/config-generated && find config/zone-mta -name ''*.toml'' -type f | head -5 | xargs ls -la\")",
+      "Bash(xargs ls:*)"
     ],
     "deny": [],
     "ask": []
