@@ -88,9 +88,9 @@ function update_doppler_secrets {
             print_info "Updating .env with latest Doppler secrets..."
             cp .env .env.backup
 
-            # Merge: Keep existing .env, then overwrite with Doppler values
-            cat .env.backup "$DOPPLER_ENV_FILE" | \
-                awk -F= '!seen[$1]++ || /^[A-Z_]+=/' > .env.temp
+            # Merge: Doppler values override existing .env (put Doppler first, deduplicate)
+            cat "$DOPPLER_ENV_FILE" .env.backup | \
+                awk -F= '!seen[$1]++' > .env.temp
             mv .env.temp .env
             rm -f .env.backup
 
@@ -102,6 +102,12 @@ function update_doppler_secrets {
 
         # Clean up temporary file
         rm -f "$DOPPLER_ENV_FILE"
+
+        # Copy updated .env to config directory so Docker Compose can use it
+        if [ -f .env ] && [ -n "$CURRENT_DIR" ]; then
+            cp .env "$CURRENT_DIR/.env"
+            print_info "✓ Copied updated .env to config directory"
+        fi
 
         print_info "✓ Environment variables updated from Doppler"
     else
