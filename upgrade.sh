@@ -281,7 +281,7 @@ echo ""
 
 # Step 6: Start containers
 print_step "Step 6/6: Starting containers with new images..."
-sudo docker compose up -d
+sudo docker compose up -d --force-recreate
 echo ""
 
 # Wait a moment for containers to initialize
