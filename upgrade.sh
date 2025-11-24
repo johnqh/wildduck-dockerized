@@ -72,6 +72,24 @@ function update_doppler_secrets {
         return 0
     fi
 
+    # Ensure default mail_box_indexer configuration is present
+    if [ -f "default-config/mail_box_indexer/.env" ]; then
+        if [ ! -f .env ]; then
+            print_info "Copying default mail_box_indexer configuration..."
+            cp default-config/mail_box_indexer/.env .env
+            print_info "✓ Default mail_box_indexer configuration copied"
+        else
+            # Merge defaults with existing .env (existing values take precedence)
+            print_info "Merging default mail_box_indexer settings with existing .env..."
+            cp .env .env.backup
+            cat .env.backup default-config/mail_box_indexer/.env | \
+                awk -F= '!seen[$1]++' > .env.temp
+            mv .env.temp .env
+            rm -f .env.backup
+            print_info "✓ Merged default settings (existing values preserved)"
+        fi
+    fi
+
     # Download from Doppler to a temporary file
     DOPPLER_ENV_FILE=".env.doppler"
     HTTP_CODE=$(curl -u "$DOPPLER_TOKEN:" \

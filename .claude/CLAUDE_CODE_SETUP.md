@@ -15,8 +15,8 @@ Custom slash commands are available in `.claude/commands/`:
 The following operations are pre-approved in `.claude/settings.local.json`:
 
 ### File Operations
-- `Read(//Users/johnhuang/0xmail/mail_box_indexer/**)` - Read indexer source
-- `Read(//Users/johnhuang/0xmail/wildduck/**)` - Read WildDuck source
+- `Read(../mail_box_indexer/**)` - Read indexer source
+- `Read(../wildduck/**)` - Read WildDuck source
 
 ### Git Operations
 - `Bash(chmod:*)` - File permissions
@@ -157,12 +157,12 @@ See `.claude/AI_DEVELOPMENT_GUIDE.md` for detailed conventions.
 
 When working on integrated features:
 
-- **WildDuck**: `/Users/johnhuang/0xmail/wildduck`
+- **WildDuck**: `../wildduck`
   - IMAP/POP3/SMTP server
   - REST API implementation
   - User management
 
-- **Mail Box Indexer**: `/Users/johnhuang/0xmail/mail_box_indexer`
+- **Mail Box Indexer**: `../mail_box_indexer`
   - Blockchain indexing (Ponder)
   - OAuth 2.0 provider
   - Points system

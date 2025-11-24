@@ -52,19 +52,24 @@ INDEXER_BASE_URL="http://mail_box_indexer:42069"
 # Export the variable for current session
 export INDEXER_BASE_URL="$INDEXER_BASE_URL"
 
-# Save to .env file for persistence
-if [ ! -f .env ]; then
+# Copy default mail_box_indexer configuration as base
+echo ""
+echo "--- Mail Box Indexer Default Configuration ---"
+if [ -f "default-config/mail_box_indexer/.env" ]; then
+    echo "Copying default mail_box_indexer configuration..."
+    cp default-config/mail_box_indexer/.env .env
+    echo "✓ Default mail_box_indexer configuration copied to .env"
+else
+    echo "Warning: default-config/mail_box_indexer/.env not found, creating empty .env"
     touch .env
 fi
 
-# Check if INDEXER_BASE_URL already exists in .env and update it, or add it
+# Update INDEXER_BASE_URL in the default config
 if grep -q "^INDEXER_BASE_URL=" .env; then
     sed -i "s|^INDEXER_BASE_URL=.*|INDEXER_BASE_URL=$INDEXER_BASE_URL|" .env
 else
     echo "INDEXER_BASE_URL=$INDEXER_BASE_URL" >> .env
 fi
-
-echo "INDEXER_BASE_URL has been set to: $INDEXER_BASE_URL"
 
 # Doppler Integration for WildDuck Secrets
 echo ""

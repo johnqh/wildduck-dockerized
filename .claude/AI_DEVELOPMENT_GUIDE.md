@@ -19,8 +19,8 @@ This guide helps AI assistants understand how to effectively work with this code
    - `DATABASE-DEBUG.md` - Debugging guide
 
 3. **Related Codebases**:
-   - WildDuck: `/Users/johnhuang/0xmail/wildduck`
-   - Mail Box Indexer: `/Users/johnhuang/0xmail/mail_box_indexer`
+   - WildDuck: `../wildduck`
+   - Mail Box Indexer: `../mail_box_indexer`
 
 ## Common Development Tasks
 

@@ -105,7 +105,7 @@ wildduck-dockerized/
 - `ALCHEMY_API_KEY` - Blockchain RPC provider
 
 **Optional**:
-- `EMAIL_DOMAIN` - Default email domain (default: 0xmail.box)
+- `EMAIL_DOMAIN` - Default email domain
 - `ENABLE_TESTNETS` - Include testnet chains (default: false)
 - `KYC_ENABLED` - Enable Sumsub KYC (default: false)
 - `HELIUS_API_KEY` - Solana webhook provider
@@ -414,8 +414,8 @@ docker-compose exec postgres pg_dump -U ponder mail_box_indexer > indexer-backup
 
 ## Related Repositories
 
-- **WildDuck**: `/Users/johnhuang/0xmail/wildduck`
-- **Mail Box Indexer**: `/Users/johnhuang/0xmail/mail_box_indexer`
+- **WildDuck**: `/wildduck`
+- **Mail Box Indexer**: `/mail_box_indexer`
 - **Haraka Plugin**: Custom build in `docker-images/`
 
 ## Version Information
