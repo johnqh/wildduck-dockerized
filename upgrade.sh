@@ -201,6 +201,23 @@ else
     print_info "Detected hostname: $CURRENT_HOSTNAME"
 fi
 
+# Extract current API hostname from existing docker-compose.yml
+CURRENT_API_HOSTNAME=$(grep -m 1 "traefik.http.routers.wildduck-api-path.rule: Host(" docker-compose.yml | sed -n "s/.*Host(\`\(.*\)\`).*/\1/p" || echo "")
+
+if [ -z "$CURRENT_API_HOSTNAME" ] || [ "$CURRENT_API_HOSTNAME" = "API_HOSTNAME" ]; then
+    # Fallback: derive from hostname or use default
+    if [[ "$CURRENT_HOSTNAME" == mail.* ]]; then
+        # If hostname is mail.example.com, use api.example.com
+        CURRENT_API_HOSTNAME="api.${CURRENT_HOSTNAME#mail.}"
+    else
+        # Otherwise, use the same as hostname (backward compatibility)
+        CURRENT_API_HOSTNAME="$CURRENT_HOSTNAME"
+    fi
+    print_warning "Could not detect API hostname from docker-compose.yml, using: $CURRENT_API_HOSTNAME"
+else
+    print_info "Detected API hostname: $CURRENT_API_HOSTNAME"
+fi
+
 # Backup current docker-compose.yml
 cp docker-compose.yml docker-compose.yml.backup
 
@@ -212,11 +229,15 @@ if [ -f "docker-compose.yml" ]; then
     # Replace HOSTNAME placeholder with actual hostname (use absolute path)
     sed -i "s|HOSTNAME|$CURRENT_HOSTNAME|g" "$CONFIG_DIR/docker-compose.yml"
 
+    # Replace API_HOSTNAME placeholder with actual API hostname (use absolute path)
+    sed -i "s|API_HOSTNAME|$CURRENT_API_HOSTNAME|g" "$CONFIG_DIR/docker-compose.yml"
+
     # Replace cert paths (use absolute path)
     sed -i "s|./certs/HOSTNAME-key.pem|./certs/$CURRENT_HOSTNAME-key.pem|g" "$CONFIG_DIR/docker-compose.yml"
     sed -i "s|./certs/HOSTNAME.pem|./certs/$CURRENT_HOSTNAME.pem|g" "$CONFIG_DIR/docker-compose.yml"
 
     print_info "✓ Updated docker-compose.yml with hostname: $CURRENT_HOSTNAME"
+    print_info "✓ Updated docker-compose.yml with API hostname: $CURRENT_API_HOSTNAME"
 else
     print_warning "Root docker-compose.yml not found, skipping update"
 fi
