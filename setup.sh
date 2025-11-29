@@ -205,6 +205,31 @@ fi
 # Source .env to check what we have
 source .env
 
+# Debug: Show what Doppler variables we loaded
+echo ""
+echo "--- Doppler Variables Loaded ---"
+if [ -n "$WILDDUCK_DBS_MONGO" ]; then
+    echo "✓ WILDDUCK_DBS_MONGO: $WILDDUCK_DBS_MONGO"
+else
+    echo "✗ WILDDUCK_DBS_MONGO: not set"
+fi
+if [ -n "$WILDDUCK_API_ROOTUSERNAME" ]; then
+    echo "✓ WILDDUCK_API_ROOTUSERNAME: $WILDDUCK_API_ROOTUSERNAME"
+else
+    echo "✗ WILDDUCK_API_ROOTUSERNAME: not set"
+fi
+if [ -n "$WILDDUCK_EMAILDOMAIN" ]; then
+    echo "✓ WILDDUCK_EMAILDOMAIN: $WILDDUCK_EMAILDOMAIN"
+else
+    echo "✗ WILDDUCK_EMAILDOMAIN: not set"
+fi
+if [ -n "$WILDDUCK_API_INDEXERBASEURL" ]; then
+    echo "✓ WILDDUCK_API_INDEXERBASEURL: $WILDDUCK_API_INDEXERBASEURL"
+else
+    echo "✗ WILDDUCK_API_INDEXERBASEURL: not set"
+fi
+echo ""
+
 # Prompt for Indexer Environment Variables only if not provided by Doppler
 echo ""
 echo "--- Mail Box Indexer Configuration ---"
