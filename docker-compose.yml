@@ -339,7 +339,7 @@ services:
   # Handles TLS termination and routing for all services
   # Automatically obtains Let's Encrypt certificates
   traefik:
-    image: traefik:3.3.4
+    image: traefik:3.2
     restart: unless-stopped
     logging: *default-logging
     command:
