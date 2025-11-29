@@ -27,7 +27,7 @@ SERVICES="Wildduck, Zone-MTA, Haraka, Mail Box Indexer"
 
 echo "Setting up $SERVICES"
 
-# Prompt for mail domain and hostname
+# Prompt for mail domain and hostnames
 echo ""
 echo "--- Domain Configuration ---"
 read -p "Enter your mail domain (required): " MAILDOMAIN
@@ -37,14 +37,23 @@ if [ -z "$MAILDOMAIN" ]; then
     exit 1
 fi
 
-read -p "Enter your hostname (optional, press Enter to use '$MAILDOMAIN'): " HOSTNAME
+read -p "Enter your mail hostname for IMAP/SMTP (optional, press Enter to use 'mail.$MAILDOMAIN'): " HOSTNAME
 
 if [ -z "$HOSTNAME" ]; then
-    HOSTNAME="$MAILDOMAIN"
-    echo "Using mail domain as hostname: $HOSTNAME"
+    HOSTNAME="mail.$MAILDOMAIN"
+    echo "Using mail hostname: $HOSTNAME"
 fi
 
-echo -e "MAIL DOMAIN: $MAILDOMAIN, HOSTNAME: $HOSTNAME"
+read -p "Enter your API hostname for REST APIs (optional, press Enter to use 'api.$MAILDOMAIN'): " API_HOSTNAME
+
+if [ -z "$API_HOSTNAME" ]; then
+    API_HOSTNAME="api.$MAILDOMAIN"
+    echo "Using API hostname: $API_HOSTNAME"
+fi
+
+echo -e "MAIL DOMAIN: $MAILDOMAIN"
+echo -e "MAIL HOSTNAME (IMAP/POP3/SMTP): $HOSTNAME"
+echo -e "API HOSTNAME (REST APIs): $API_HOSTNAME"
 
 # Indexer URL uses internal Docker service name
 INDEXER_BASE_URL="http://mail_box_indexer:42069"
@@ -351,6 +360,7 @@ sudo docker stop $(sudo docker ps -q --filter "name=^/config-generated")
 echo "Copying Traefik config and replacing default configuration"
 cp -r ./dynamic_conf ./config-generated
 sed -i "s|HOSTNAME|$HOSTNAME|g" ./config-generated/docker-compose.yml
+sed -i "s|API_HOSTNAME|$API_HOSTNAME|g" ./config-generated/docker-compose.yml
 
 
 # Mongo

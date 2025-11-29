@@ -80,14 +80,14 @@ services:
 
       # HTTP API (Port 80) - REST API at /api path
       traefik.http.routers.wildduck-api-path-http.entrypoints: web
-      traefik.http.routers.wildduck-api-path-http.rule: Host(`HOSTNAME`) && PathPrefix(`/api`)
+      traefik.http.routers.wildduck-api-path-http.rule: Host(`API_HOSTNAME`) && PathPrefix(`/api`)
       traefik.http.routers.wildduck-api-path-http.middlewares: wildduck-api-cors@docker,wildduck-api-stripprefix@docker
       traefik.http.routers.wildduck-api-path-http.priority: 100
       traefik.http.routers.wildduck-api-path-http.service: wildduck-api-path
 
       # HTTPS API (Port 443) - REST API at /api path
       traefik.http.routers.wildduck-api-path.entrypoints: websecure
-      traefik.http.routers.wildduck-api-path.rule: Host(`HOSTNAME`) && PathPrefix(`/api`)
+      traefik.http.routers.wildduck-api-path.rule: Host(`API_HOSTNAME`) && PathPrefix(`/api`)
       traefik.http.routers.wildduck-api-path.tls.certresolver: letsencrypt
       traefik.http.routers.wildduck-api-path.middlewares: wildduck-api-cors@docker,wildduck-api-stripprefix@docker
       traefik.http.services.wildduck-api-path.loadbalancer.server.port: 8080
@@ -293,21 +293,21 @@ services:
 
       # HTTP API (Port 80) - Blockchain indexer API at /idx path
       traefik.http.routers.mail-box-indexer-http.entrypoints: web
-      traefik.http.routers.mail-box-indexer-http.rule: Host(`HOSTNAME`) && PathPrefix(`/idx`)
+      traefik.http.routers.mail-box-indexer-http.rule: Host(`API_HOSTNAME`) && PathPrefix(`/idx`)
       traefik.http.routers.mail-box-indexer-http.middlewares: mail-box-indexer-stripprefix@docker
       traefik.http.routers.mail-box-indexer-http.priority: 100
       traefik.http.routers.mail-box-indexer-http.service: mail-box-indexer
 
       # HTTPS API (Port 443) - Blockchain indexer API at /idx path
       traefik.http.routers.mail-box-indexer.entrypoints: websecure
-      traefik.http.routers.mail-box-indexer.rule: Host(`HOSTNAME`) && PathPrefix(`/idx`)
+      traefik.http.routers.mail-box-indexer.rule: Host(`API_HOSTNAME`) && PathPrefix(`/idx`)
       traefik.http.routers.mail-box-indexer.tls: true
       traefik.http.routers.mail-box-indexer.tls.certresolver: letsencrypt
       traefik.http.routers.mail-box-indexer.middlewares: mail-box-indexer-stripprefix@docker
       traefik.http.services.mail-box-indexer.loadbalancer.server.port: 42069
 
       # Middleware: Strip /idx prefix before forwarding to indexer
-      # Converts http(s)://HOSTNAME/idx/users → http://mail_box_indexer:42069/users
+      # Converts http(s)://API_HOSTNAME/idx/users → http://mail_box_indexer:42069/users
       traefik.http.middlewares.mail-box-indexer-stripprefix.stripprefix.prefixes: /idx
 
   # PostgreSQL - Indexer Database
