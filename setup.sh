@@ -359,8 +359,9 @@ sudo docker stop $(sudo docker ps -q --filter "name=^/config-generated")
 # Traefik
 echo "Copying Traefik config and replacing default configuration"
 cp -r ./dynamic_conf ./config-generated
-sed -i "s|HOSTNAME|$HOSTNAME|g" ./config-generated/docker-compose.yml
+# Replace API_HOSTNAME first, then HOSTNAME (order matters to avoid partial replacement)
 sed -i "s|API_HOSTNAME|$API_HOSTNAME|g" ./config-generated/docker-compose.yml
+sed -i "s|HOSTNAME|$HOSTNAME|g" ./config-generated/docker-compose.yml
 
 
 # Mongo

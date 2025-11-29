@@ -226,11 +226,12 @@ cd ..
 if [ -f "docker-compose.yml" ]; then
     cp docker-compose.yml "$CONFIG_DIR/docker-compose.yml"
 
-    # Replace HOSTNAME placeholder with actual hostname (use absolute path)
-    sed -i "s|HOSTNAME|$CURRENT_HOSTNAME|g" "$CONFIG_DIR/docker-compose.yml"
-
+    # Replace API_HOSTNAME first, then HOSTNAME (order matters to avoid partial replacement)
     # Replace API_HOSTNAME placeholder with actual API hostname (use absolute path)
     sed -i "s|API_HOSTNAME|$CURRENT_API_HOSTNAME|g" "$CONFIG_DIR/docker-compose.yml"
+
+    # Replace HOSTNAME placeholder with actual hostname (use absolute path)
+    sed -i "s|HOSTNAME|$CURRENT_HOSTNAME|g" "$CONFIG_DIR/docker-compose.yml"
 
     # Replace cert paths (use absolute path)
     sed -i "s|./certs/HOSTNAME-key.pem|./certs/$CURRENT_HOSTNAME-key.pem|g" "$CONFIG_DIR/docker-compose.yml"

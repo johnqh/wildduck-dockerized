@@ -293,7 +293,7 @@ services:
       # HTTP API (Port 80) - Blockchain indexer API at /idx path
       traefik.http.routers.mail-box-indexer-http.entrypoints: web
       traefik.http.routers.mail-box-indexer-http.rule: Host(`API_HOSTNAME`) && PathPrefix(`/idx`)
-      traefik.http.routers.mail-box-indexer-http.middlewares: mail-box-indexer-stripprefix@docker
+      traefik.http.routers.mail-box-indexer-http.middlewares: mail-box-indexer-cors@docker,mail-box-indexer-stripprefix@docker
       traefik.http.routers.mail-box-indexer-http.priority: 100
       traefik.http.routers.mail-box-indexer-http.service: mail-box-indexer
 
@@ -302,8 +302,16 @@ services:
       traefik.http.routers.mail-box-indexer.rule: Host(`API_HOSTNAME`) && PathPrefix(`/idx`)
       traefik.http.routers.mail-box-indexer.tls: true
       traefik.http.routers.mail-box-indexer.tls.certresolver: letsencrypt
-      traefik.http.routers.mail-box-indexer.middlewares: mail-box-indexer-stripprefix@docker
+      traefik.http.routers.mail-box-indexer.middlewares: mail-box-indexer-cors@docker,mail-box-indexer-stripprefix@docker
       traefik.http.services.mail-box-indexer.loadbalancer.server.port: 42069
+
+      # Middleware: CORS headers for API access
+      traefik.http.middlewares.mail-box-indexer-cors.headers.accesscontrolallowmethods: GET,POST,PUT,DELETE,OPTIONS,PATCH
+      traefik.http.middlewares.mail-box-indexer-cors.headers.accesscontrolallowheaders: "*"
+      traefik.http.middlewares.mail-box-indexer-cors.headers.accesscontrolalloworiginlistregex: ".*"
+      traefik.http.middlewares.mail-box-indexer-cors.headers.accesscontrolmaxage: 100
+      traefik.http.middlewares.mail-box-indexer-cors.headers.addvaryheader: true
+      traefik.http.middlewares.mail-box-indexer-cors.headers.accesscontrolallowcredentials: true
 
       # Middleware: Strip /idx prefix before forwarding to indexer
       # Converts http(s)://API_HOSTNAME/idx/users → http://mail_box_indexer:42069/users
