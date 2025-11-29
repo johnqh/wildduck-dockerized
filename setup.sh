@@ -857,6 +857,13 @@ if ! $USE_SELF_SIGNED_CERTS; then
                 CERT_READY=false
             else
                 echo "✓ Successfully created certificate files"
+
+                # Copy certificates to Haraka config directory
+                # (Haraka mounts the entire config directory, so certificates need to be inside it)
+                echo "Copying certificates to Haraka config directory..."
+                sudo cp "$CERT_FILE" "./config-generated/config/haraka/tls_cert.pem"
+                sudo cp "$KEY_FILE" "./config-generated/config/haraka/tls_key.pem"
+                echo "✓ Certificates copied to Haraka config"
             fi
         fi
     fi
@@ -974,6 +981,11 @@ if [ ! -f "$KEY_FILE" ] || [ ! -s "$KEY_FILE" ]; then
     echo "Error: Key file was not created properly"
     exit 1
 fi
+
+# Copy certificates to Haraka config directory
+echo "Copying certificates to Haraka config directory..."
+sudo cp "$CERT_FILE" "$SCRIPT_DIR/config-generated/config/haraka/tls_cert.pem"
+sudo cp "$KEY_FILE" "$SCRIPT_DIR/config-generated/config/haraka/tls_key.pem"
 
 echo "Certificate and key updated successfully at $(date)"
 

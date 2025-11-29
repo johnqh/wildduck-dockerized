@@ -147,8 +147,8 @@ services:
       - rspamd
     volumes:
       - ./config/haraka:/app/config
-      - ./certs/HOSTNAME-key.pem:/app/config/tls_key.pem  # TLS certificate
-      - ./certs/HOSTNAME.pem:/app/config/tls_cert.pem      # TLS certificate
+      # TLS certificates should be copied into ./config/haraka/ directory
+      # instead of being mounted separately to avoid Docker mount issues
     networks:
       - wildduck_network
 
