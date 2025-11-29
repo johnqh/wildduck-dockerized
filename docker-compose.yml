@@ -338,6 +338,7 @@ services:
   # Traefik - Reverse Proxy and Load Balancer
   # Handles TLS termination and routing for all services
   # Automatically obtains Let's Encrypt certificates
+  # Note: Using Traefik 2.11 LTS instead of 3.x due to Docker API compatibility issues
   traefik:
     image: traefik:2.11
     restart: unless-stopped
