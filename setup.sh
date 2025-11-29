@@ -84,7 +84,7 @@ if [ -f "$DOPPLER_TOKEN_FILE" ]; then
     echo "Found saved Doppler token, validating..."
 else
     echo "Enter your Doppler service token for WildDuck."
-    echo "(This will download MongoDB URL and other WildDuck secrets from Doppler)"
+    echo "(This will download WILDDUCK_DBS_MONGO and other WildDuck secrets from Doppler)"
     echo ""
     read -p "Doppler service token: " DOPPLER_TOKEN
 
@@ -330,13 +330,13 @@ sed -i "s|HOSTNAME|$HOSTNAME|g" ./config-generated/docker-compose.yml
 
 # Mongo
 # Only prompt for MongoDB configuration if not provided by Doppler
-if [ -z "$WILDDUCK_MONGO_URL" ]; then
-    echo "MongoDB URL not found in Doppler. Prompting for configuration..."
+if [ -z "$WILDDUCK_DBS_MONGO" ]; then
+    echo "WILDDUCK_DBS_MONGO not found in Doppler. Prompting for configuration..."
     source "./setup-scripts/mongo.sh"
 else
-    echo "Using MongoDB URL from Doppler: $WILDDUCK_MONGO_URL"
+    echo "Using MongoDB URL from Doppler: $WILDDUCK_DBS_MONGO"
     # Check if it's a local or remote MongoDB based on the URL
-    if [[ "$WILDDUCK_MONGO_URL" == *"mongo:27017"* ]] || [[ "$WILDDUCK_MONGO_URL" == *"localhost"* ]] || [[ "$WILDDUCK_MONGO_URL" == *"127.0.0.1"* ]]; then
+    if [[ "$WILDDUCK_DBS_MONGO" == *"mongo:27017"* ]] || [[ "$WILDDUCK_DBS_MONGO" == *"localhost"* ]] || [[ "$WILDDUCK_DBS_MONGO" == *"127.0.0.1"* ]]; then
         echo "Detected local MongoDB configuration"
     else
         echo "Detected remote MongoDB configuration"
@@ -530,12 +530,16 @@ sed -i "s/hostname=\"email.example.com\"/hostname=\"$HOSTNAME\"/" ./config-gener
 sed -i "s/hostname=\"email.example.com\"/hostname=\"$HOSTNAME\"/" ./config-generated/config/wildduck/pop3.toml
 sed -i "s/hostname=\"email.example.com\"/hostname=\"$HOSTNAME\"/" ./config-generated/config/wildduck/default.toml
 sed -i "s/rpId=\"email.example.com\"/rpId=\"$HOSTNAME\"/" ./config-generated/config/wildduck/default.toml
-sed -i "s/emailDomain=\"email.example.com\"/emailDomain=\"$MAILDOMAIN\"/" ./config-generated/config/wildduck/default.toml
 
 echo "Generating secrets and placing them in $SERVICES configuration"
 
 # Source .env to get Doppler values
 source .env
+
+# Use WILDDUCK_EMAILDOMAIN from Doppler if available, otherwise use prompted MAILDOMAIN
+EMAIL_DOMAIN_TO_USE=${WILDDUCK_EMAILDOMAIN:-$MAILDOMAIN}
+sed -i "s/emailDomain=\"email.example.com\"/emailDomain=\"$EMAIL_DOMAIN_TO_USE\"/" ./config-generated/config/wildduck/default.toml
+echo "✓ Set emailDomain to: $EMAIL_DOMAIN_TO_USE"
 
 # Use Doppler values if available, otherwise generate randomly
 # These secrets are needed for inter-service communication
@@ -545,7 +549,7 @@ DKIM_SECRET=${WILDDUCK_DKIM_SECRET:-$(head /dev/urandom | tr -dc A-Za-z0-9 | hea
 HMAC_SECRET=${WILDDUCK_HMAC_SECRET:-$(head /dev/urandom | tr -dc A-Za-z0-9 | head -c30)}
 
 # MongoDB URL - use Doppler value or default to Docker service
-MONGO_URL=${WILDDUCK_MONGO_URL:-mongodb://mongo:27017/wildduck}
+MONGO_URL=${WILDDUCK_DBS_MONGO:-mongodb://mongo:27017/wildduck}
 
 # Zone-MTA
 sed -i "s/secret=\"super secret value\"/secret=\"$ZONEMTA_SECRET\"/" ./config-generated/config/zone-mta/plugins/loop-breaker.toml
@@ -608,14 +612,16 @@ fi
 echo "✓ Applying HMAC secret for accessControl"
 sed -i "s|secret = \"a secret cat\"|secret = \"$HMAC_SECRET\"|" ./config-generated/config/wildduck/api.toml
 
-echo "✓ Setting indexerBaseUrl to internal Docker service"
-sed -i "s|indexerBaseUrl = \".*\"|indexerBaseUrl = \"$INDEXER_BASE_URL\"|" ./config-generated/config/wildduck/api.toml
+# Use WILDDUCK_API_INDEXERBASEURL from Doppler if available, otherwise use INDEXER_BASE_URL
+INDEXER_URL_TO_USE=${WILDDUCK_API_INDEXERBASEURL:-$INDEXER_BASE_URL}
+echo "✓ Setting indexerBaseUrl to: $INDEXER_URL_TO_USE"
+sed -i "s|indexerBaseUrl = \".*\"|indexerBaseUrl = \"$INDEXER_URL_TO_USE\"|" ./config-generated/config/wildduck/api.toml
 
 # Apply optional Doppler overrides if they exist
-if [ -n "$WILDDUCK_ROOT_USERNAME" ]; then
-    echo "✓ Applying WILDDUCK_ROOT_USERNAME from Doppler"
-    sed -i "s|rootUsername = \"admin\"|rootUsername = \"$WILDDUCK_ROOT_USERNAME\"|" ./config-generated/config/wildduck/api.toml
-    sed -i "s|rootUsername = \"0x[a-fA-F0-9]*\"|rootUsername = \"$WILDDUCK_ROOT_USERNAME\"|" ./config-generated/config/wildduck/api.toml
+if [ -n "$WILDDUCK_API_ROOTUSERNAME" ]; then
+    echo "✓ Applying WILDDUCK_API_ROOTUSERNAME from Doppler: $WILDDUCK_API_ROOTUSERNAME"
+    sed -i "s|rootUsername = \"admin\"|rootUsername = \"$WILDDUCK_API_ROOTUSERNAME\"|" ./config-generated/config/wildduck/api.toml
+    sed -i "s|rootUsername = \"0x[a-fA-F0-9]*\"|rootUsername = \"$WILDDUCK_API_ROOTUSERNAME\"|" ./config-generated/config/wildduck/api.toml
 fi
 
 # Apply optional Doppler overrides (commented out by default)
