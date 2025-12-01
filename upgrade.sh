@@ -191,7 +191,7 @@ update_doppler_secrets
 print_step "Step 2/6: Updating docker-compose.yml configuration..."
 
 # Extract current hostname from existing docker-compose.yml
-CURRENT_HOSTNAME=$(grep -m 1 "traefik.tcp.routers.wildduck-imaps.rule: HostSNI(" docker-compose.yml | sed -n "s/.*HostSNI(\`\(.*\)\`).*/\1/p" || echo "")
+CURRENT_HOSTNAME=$(grep -m 1 "traefik.tcp.routers.wildduck-imaps.rule: HostSNI(" docker-compose.yml | sed -n "s/.*HostSNI(\`\([^`]*\)\`).*/\1/p" || echo "")
 
 if [ -z "$CURRENT_HOSTNAME" ] || [ "$CURRENT_HOSTNAME" = "HOSTNAME" ]; then
     # Fallback: try to get from environment or use default
@@ -202,7 +202,7 @@ else
 fi
 
 # Extract current API hostname from existing docker-compose.yml
-CURRENT_API_HOSTNAME=$(grep -m 1 "traefik.http.routers.wildduck-api-path.rule: Host(" docker-compose.yml | sed -n "s/.*Host(\`\(.*\)\`).*/\1/p" || echo "")
+CURRENT_API_HOSTNAME=$(grep -m 1 "traefik.http.routers.wildduck-api-path.rule: Host(" docker-compose.yml | sed -n "s/.*Host(\`\([^`]*\)\`).*/\1/p" || echo "")
 
 if [ -z "$CURRENT_API_HOSTNAME" ] || [ "$CURRENT_API_HOSTNAME" = "API_HOSTNAME" ]; then
     # Fallback: derive from hostname or use default
