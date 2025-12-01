@@ -194,8 +194,11 @@ print_step "Step 2/6: Updating docker-compose.yml configuration..."
 CURRENT_HOSTNAME=$(grep -m 1 "traefik.tcp.routers.wildduck-imaps.rule: HostSNI(" docker-compose.yml | sed -n "s/.*HostSNI(\`\([^`]*\)\`).*/\1/p" || echo "")
 
 if [ -z "$CURRENT_HOSTNAME" ] || [ "$CURRENT_HOSTNAME" = "HOSTNAME" ]; then
-    # Fallback: try to get from environment or use default
-    CURRENT_HOSTNAME="${EMAIL_DOMAIN:-0xmail.box}"
+    # Fallback: try to get from .env file or use default
+    if [ -z "$EMAIL_DOMAIN" ] && [ -f .env ]; then
+        EMAIL_DOMAIN=$(grep -m 1 "^EMAIL_DOMAIN=" .env | cut -d= -f2 | tr -d '"' | tr -d "'")
+    fi
+    CURRENT_HOSTNAME="${EMAIL_DOMAIN:-mail.signic.email}"
     print_warning "Could not detect hostname from docker-compose.yml, using: $CURRENT_HOSTNAME"
 else
     print_info "Detected hostname: $CURRENT_HOSTNAME"
