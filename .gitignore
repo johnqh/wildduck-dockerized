@@ -25,3 +25,4 @@ frontend-config
 # DNS configuration files (contain sensitive DKIM keys)
 *-nameserver.txt
 *.email-nameserver.txt
+.deployment-config

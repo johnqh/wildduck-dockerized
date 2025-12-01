@@ -194,11 +194,26 @@ print_step "Step 2/6: Updating docker-compose.yml configuration..."
 CURRENT_HOSTNAME=$(grep -m 1 "traefik.tcp.routers.wildduck-imaps.rule: HostSNI(" docker-compose.yml | sed -n "s/.*HostSNI(\`\([^`]*\)\`).*/\1/p" || echo "")
 
 if [ -z "$CURRENT_HOSTNAME" ] || [ "$CURRENT_HOSTNAME" = "HOSTNAME" ]; then
-    # Fallback: try to get from .env file or use default
-    if [ -z "$EMAIL_DOMAIN" ] && [ -f .env ]; then
-        EMAIL_DOMAIN=$(grep -m 1 "^EMAIL_DOMAIN=" .env | cut -d= -f2 | tr -d '"' | tr -d "'")
+    # Fallback: try to get from .deployment-config file (saved by setup.sh)
+    if [ -f .deployment-config ]; then
+        source .deployment-config
+        CURRENT_HOSTNAME="$MAIL_HOSTNAME"
     fi
-    CURRENT_HOSTNAME="${EMAIL_DOMAIN:-mail.signic.email}"
+
+    # If still not found, try to construct from EMAIL_DOMAIN
+    if [ -z "$CURRENT_HOSTNAME" ] && [ -f .env ]; then
+        EMAIL_DOMAIN=$(grep -m 1 "^EMAIL_DOMAIN=" .env | cut -d= -f2 | tr -d '"' | tr -d "'")
+        if [ -n "$EMAIL_DOMAIN" ]; then
+            CURRENT_HOSTNAME="mail.${EMAIL_DOMAIN}"
+        fi
+    fi
+
+    # Require hostname to be set
+    if [ -z "$CURRENT_HOSTNAME" ]; then
+        print_error "Could not detect hostname from docker-compose.yml, .deployment-config, or EMAIL_DOMAIN"
+        print_error "Please run setup.sh first or set EMAIL_DOMAIN in .env"
+        exit 1
+    fi
     print_warning "Could not detect hostname from docker-compose.yml, using: $CURRENT_HOSTNAME"
 else
     print_info "Detected hostname: $CURRENT_HOSTNAME"
@@ -208,14 +223,23 @@ fi
 CURRENT_API_HOSTNAME=$(grep -m 1 "traefik.http.routers.wildduck-api-path.rule: Host(" docker-compose.yml | sed -n "s/.*Host(\`\([^`]*\)\`).*/\1/p" || echo "")
 
 if [ -z "$CURRENT_API_HOSTNAME" ] || [ "$CURRENT_API_HOSTNAME" = "API_HOSTNAME" ]; then
-    # Fallback: derive from hostname or use default
-    if [[ "$CURRENT_HOSTNAME" == mail.* ]]; then
+    # Fallback: try to get from .deployment-config file (saved by setup.sh)
+    if [ -f .deployment-config ] && [ -z "$CURRENT_API_HOSTNAME" ]; then
+        source .deployment-config
+        CURRENT_API_HOSTNAME="$API_HOSTNAME"
+    fi
+
+    # If still not found, derive from CURRENT_HOSTNAME
+    if [ -z "$CURRENT_API_HOSTNAME" ] && [[ "$CURRENT_HOSTNAME" == mail.* ]]; then
         # If hostname is mail.example.com, use api.example.com
         CURRENT_API_HOSTNAME="api.${CURRENT_HOSTNAME#mail.}"
-    else
-        # Otherwise, use the same as hostname (backward compatibility)
+    fi
+
+    # Fallback to same as hostname (backward compatibility)
+    if [ -z "$CURRENT_API_HOSTNAME" ]; then
         CURRENT_API_HOSTNAME="$CURRENT_HOSTNAME"
     fi
+
     print_warning "Could not detect API hostname from docker-compose.yml, using: $CURRENT_API_HOSTNAME"
 else
     print_info "Detected API hostname: $CURRENT_API_HOSTNAME"
