@@ -264,6 +264,52 @@ if [ -f "docker-compose.yml" ]; then
     sed -i "s|./certs/HOSTNAME-key.pem|./certs/$CURRENT_HOSTNAME-key.pem|g" "$CONFIG_DIR/docker-compose.yml"
     sed -i "s|./certs/HOSTNAME.pem|./certs/$CURRENT_HOSTNAME.pem|g" "$CONFIG_DIR/docker-compose.yml"
 
+    # Detect if Let's Encrypt is being used (check backup for existing certresolver config)
+    if grep -q "certificatesresolvers.letsencrypt.acme.email" "$CONFIG_DIR/docker-compose.yml.backup" 2>/dev/null && \
+       ! grep -q "# - \"--certificatesresolvers.letsencrypt.acme.email" "$CONFIG_DIR/docker-compose.yml.backup" 2>/dev/null; then
+        print_info "Detected Let's Encrypt configuration, applying ACME settings..."
+
+        # Extract the email from backup
+        ACME_EMAIL=$(grep "certificatesresolvers.letsencrypt.acme.email" "$CONFIG_DIR/docker-compose.yml.backup" | sed -n 's/.*email=\([^"]*\).*/\1/p' | head -1)
+        if [ -z "$ACME_EMAIL" ]; then
+            ACME_EMAIL="domainadmin@${CURRENT_HOSTNAME#mail.}"
+        fi
+
+        # Enable ACME certresolver
+        sed -i "s|# - \"--certificatesresolvers.letsencrypt.acme.email=ACME_EMAIL\"|- \"--certificatesresolvers.letsencrypt.acme.email=$ACME_EMAIL\"|g" "$CONFIG_DIR/docker-compose.yml"
+        sed -i "s|# - \"--certificatesresolvers.letsencrypt.acme.storage=/data/acme.json\"|- \"--certificatesresolvers.letsencrypt.acme.storage=/data/acme.json\"|g" "$CONFIG_DIR/docker-compose.yml"
+        sed -i "s|# - \"--certificatesresolvers.letsencrypt.acme.tlschallenge=true\"|- \"--certificatesresolvers.letsencrypt.acme.tlschallenge=true\"|g" "$CONFIG_DIR/docker-compose.yml"
+
+        # Enable certresolver for TCP routers
+        sed -i "s|# traefik.tcp.routers.zonemta.tls.certresolver: letsencrypt|traefik.tcp.routers.zonemta.tls.certresolver: letsencrypt|g" "$CONFIG_DIR/docker-compose.yml"
+        sed -i "s|# traefik.tcp.routers.wildduck-pop3s.tls.certresolver: letsencrypt|traefik.tcp.routers.wildduck-pop3s.tls.certresolver: letsencrypt|g" "$CONFIG_DIR/docker-compose.yml"
+        sed -i "s|# traefik.tcp.routers.wildduck-imaps.tls.certresolver: letsencrypt|traefik.tcp.routers.wildduck-imaps.tls.certresolver: letsencrypt|g" "$CONFIG_DIR/docker-compose.yml"
+
+        # Remove self-signed cert related config
+        sed -i "/traefik.tcp.routers.zonemta.tls: true/d" "$CONFIG_DIR/docker-compose.yml"
+        sed -i "/traefik.tcp.routers.wildduck-pop3s.tls: true/d" "$CONFIG_DIR/docker-compose.yml"
+        sed -i "/traefik.tcp.routers.wildduck-imaps.tls: true/d" "$CONFIG_DIR/docker-compose.yml"
+        sed -i "/- \.\/dynamic_conf:\/etc\/traefik\/dynamic_conf:ro/d" "$CONFIG_DIR/docker-compose.yml"
+        sed -i '/- "--providers.file=true"/d' "$CONFIG_DIR/docker-compose.yml"
+        sed -i '/- "--providers.file.directory=\/etc\/traefik\/dynamic_conf"/d' "$CONFIG_DIR/docker-compose.yml"
+        sed -i '/- "--providers.file.watch=true"/d' "$CONFIG_DIR/docker-compose.yml"
+        sed -i '/- "--serversTransport.insecureSkipVerify=true"/d' "$CONFIG_DIR/docker-compose.yml"
+        sed -i '/- "--serversTransport.rootCAs=\/etc\/traefik\/certs\/rootCA.pem"/d' "$CONFIG_DIR/docker-compose.yml"
+        sed -i '/- \.\/certs:\/etc\/traefik\/certs.*# Mount your certs directory/d' "$CONFIG_DIR/docker-compose.yml"
+
+        # Clear dynamic.yml to prevent loading non-existent cert files
+        echo "# Using Let's Encrypt - certificates managed via ACME" > "$CONFIG_DIR/dynamic_conf/dynamic.yml"
+        echo "tls: {}" >> "$CONFIG_DIR/dynamic_conf/dynamic.yml"
+
+        print_info "✓ Applied Let's Encrypt configuration"
+    else
+        print_info "Using self-signed certificates configuration"
+        # Update dynamic.yml with correct hostname for self-signed certs
+        if [ -f "$CONFIG_DIR/dynamic_conf/dynamic.yml" ]; then
+            sed -i "s/wildduck.dockerized.test/$CURRENT_HOSTNAME/g" "$CONFIG_DIR/dynamic_conf/dynamic.yml"
+        fi
+    fi
+
     print_info "✓ Updated docker-compose.yml with hostname: $CURRENT_HOSTNAME"
     print_info "✓ Updated docker-compose.yml with API hostname: $CURRENT_API_HOSTNAME"
 else

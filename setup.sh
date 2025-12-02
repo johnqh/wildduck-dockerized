@@ -556,6 +556,11 @@ if ! $USE_SELF_SIGNED_CERTS; then
     # Delete the serversTransport.rootCAs line
     sed -i '/- "--serversTransport.rootCAs=\/etc\/traefik\/certs\/rootCA.pem"/d' ./config-generated/docker-compose.yml
 
+    # Clear dynamic.yml since Let's Encrypt uses acme.json instead of static cert files
+    # This prevents Traefik from trying to load non-existent certificate files
+    echo "# Using Let's Encrypt - certificates managed via ACME" > ./config-generated/dynamic_conf/dynamic.yml
+    echo "tls: {}" >> ./config-generated/dynamic_conf/dynamic.yml
+
     # # Delete the log.level=DEBUG line
     # sed -i '/- "--log.level=DEBUG"/d' ./config-generated/docker-compose.yml
 
