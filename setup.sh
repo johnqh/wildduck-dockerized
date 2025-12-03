@@ -604,6 +604,8 @@ MONGO_URL=${WILDDUCK_DBS_MONGO:-mongodb://mongo:27017/wildduck}
 # Zone-MTA
 sed -i "s/secret=\"super secret value\"/secret=\"$ZONEMTA_SECRET\"/" ./config-generated/config/zone-mta/plugins/loop-breaker.toml
 sed -i "s/secret=\"secret value\"/secret=\"$SRS_SECRET\"/" ./config-generated/config/zone-mta/plugins/wildduck.toml
+# IMPORTANT: DKIM secret must be the same in ZoneMTA and WildDuck for DKIM signing to work
+# ZoneMTA uses this secret to decrypt DKIM private keys that WildDuck encrypted
 sed -i "s/secret=\"super secret key\"/secret=\"$DKIM_SECRET\"/" ./config-generated/config/zone-mta/plugins/wildduck.toml
 
 # ZoneMTA and WildDuck Database Configuration
@@ -647,6 +649,8 @@ fi
 
 # Wildduck - sender and dkim
 sed -i "s/#loopSecret=\"secret value\"/loopSecret=\"$SRS_SECRET\"/" ./config-generated/config/wildduck/sender.toml
+# IMPORTANT: This DKIM secret must match ZoneMTA's DKIM secret (see above)
+# WildDuck encrypts DKIM private keys with this secret, ZoneMTA decrypts them for signing
 sed -i "s/secret=\"super secret key\"/secret=\"$DKIM_SECRET\"/" ./config-generated/config/wildduck/dkim.toml
 
 # Wildduck - api.toml: Copy from wildduck repo or use default config

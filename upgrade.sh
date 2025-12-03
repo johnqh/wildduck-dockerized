@@ -348,6 +348,20 @@ if [ -d "default-config" ]; then
         print_info "Updating ZoneMTA plugins..."
         mkdir -p "$CONFIG_DIR/config/zone-mta/plugins"
 
+        # Extract existing secrets BEFORE copying new files
+        EXISTING_SRS_SECRET=""
+        EXISTING_DKIM_SECRET=""
+        if [ -f "$CONFIG_DIR/config/zone-mta/plugins/wildduck.toml" ]; then
+            EXISTING_SRS_SECRET=$(grep -m 1 'secret="' "$CONFIG_DIR/config/zone-mta/plugins/wildduck.toml" 2>/dev/null | head -1 | sed -n 's/.*secret="\([^"]*\)".*/\1/p' || echo "")
+            EXISTING_DKIM_SECRET=$(grep 'secret="' "$CONFIG_DIR/config/zone-mta/plugins/wildduck.toml" 2>/dev/null | tail -1 | sed -n 's/.*secret="\([^"]*\)".*/\1/p' || echo "")
+        fi
+        # Also check WildDuck's dkim.toml as fallback for DKIM secret
+        if [ -z "$EXISTING_DKIM_SECRET" ] || [ "$EXISTING_DKIM_SECRET" = "super secret key" ]; then
+            if [ -f "$CONFIG_DIR/config/wildduck/dkim.toml" ]; then
+                EXISTING_DKIM_SECRET=$(grep 'secret="' "$CONFIG_DIR/config/wildduck/dkim.toml" 2>/dev/null | tail -1 | sed -n 's/.*secret="\([^"]*\)".*/\1/p' || echo "")
+            fi
+        fi
+
         # Copy plugin files (.js and .toml)
         cp default-config/zone-mta/plugins/*.js "$CONFIG_DIR/config/zone-mta/plugins/" 2>/dev/null || true
         cp default-config/zone-mta/plugins/*.toml "$CONFIG_DIR/config/zone-mta/plugins/" 2>/dev/null || true
@@ -356,14 +370,20 @@ if [ -d "default-config" ]; then
         if [ -f "$CONFIG_DIR/config/zone-mta/plugins/wildduck.toml" ]; then
             print_info "Updating WildDuck plugin configuration..."
 
+            # Derive mail domain from hostname (strip "mail." prefix if present)
+            if [[ "$CURRENT_HOSTNAME" == mail.* ]]; then
+                MAIL_DOMAIN="${CURRENT_HOSTNAME#mail.}"
+            else
+                MAIL_DOMAIN="$CURRENT_HOSTNAME"
+            fi
+
             # Replace hostname and domain placeholders
+            # hostname = the full mail server hostname (e.g., mail.signic.email)
+            # rewriteDomain = the mail domain for SRS rewriting (e.g., signic.email)
             sed -i "s/hostname=\"email.example.com\"/hostname=\"$CURRENT_HOSTNAME\"/" "$CONFIG_DIR/config/zone-mta/plugins/wildduck.toml"
-            sed -i "s/rewriteDomain=\"email.example.com\"/rewriteDomain=\"$CURRENT_HOSTNAME\"/" "$CONFIG_DIR/config/zone-mta/plugins/wildduck.toml"
+            sed -i "s/rewriteDomain=\"email.example.com\"/rewriteDomain=\"$MAIL_DOMAIN\"/" "$CONFIG_DIR/config/zone-mta/plugins/wildduck.toml"
 
-            # Extract and preserve existing secrets if they exist
-            EXISTING_SRS_SECRET=$(grep -m 1 "secret=" "$CONFIG_DIR/config/zone-mta/plugins/wildduck.toml" 2>/dev/null | head -1 | sed -n 's/.*secret="\([^"]*\)".*/\1/p' || echo "")
-            EXISTING_DKIM_SECRET=$(grep "secret=" "$CONFIG_DIR/config/zone-mta/plugins/wildduck.toml" 2>/dev/null | tail -1 | sed -n 's/.*secret="\([^"]*\)".*/\1/p' || echo "")
-
+            # Restore preserved secrets
             if [ -n "$EXISTING_SRS_SECRET" ] && [ "$EXISTING_SRS_SECRET" != "secret value" ]; then
                 sed -i "s/secret=\"secret value\"/secret=\"$EXISTING_SRS_SECRET\"/" "$CONFIG_DIR/config/zone-mta/plugins/wildduck.toml"
             fi
@@ -373,6 +393,31 @@ if [ -d "default-config" ]; then
             fi
 
             print_info "✓ WildDuck plugin configuration updated with hostname: $CURRENT_HOSTNAME"
+            print_info "✓ SRS rewriteDomain set to: $MAIL_DOMAIN"
+        fi
+
+        # Sync DKIM secret to WildDuck's dkim.toml (must match ZoneMTA for DKIM signing to work)
+        # WildDuck encrypts DKIM private keys with this secret, ZoneMTA decrypts them for signing
+        if [ -n "$EXISTING_DKIM_SECRET" ] && [ "$EXISTING_DKIM_SECRET" != "super secret key" ]; then
+            if [ -f "$CONFIG_DIR/config/wildduck/dkim.toml" ]; then
+                # First try to replace the default value
+                sed -i "s/secret=\"super secret key\"/secret=\"$EXISTING_DKIM_SECRET\"/" "$CONFIG_DIR/config/wildduck/dkim.toml"
+
+                # Verify the secret is now correct (handles case where it was already set)
+                CURRENT_WD_DKIM=$(grep 'secret="' "$CONFIG_DIR/config/wildduck/dkim.toml" 2>/dev/null | tail -1 | sed -n 's/.*secret="\([^"]*\)".*/\1/p' || echo "")
+                if [ "$CURRENT_WD_DKIM" = "$EXISTING_DKIM_SECRET" ]; then
+                    print_info "✓ DKIM secret synchronized between ZoneMTA and WildDuck"
+                elif [ -n "$CURRENT_WD_DKIM" ] && [ "$CURRENT_WD_DKIM" != "super secret key" ]; then
+                    # WildDuck has a different custom secret - this is a problem!
+                    print_warning "DKIM secret mismatch detected!"
+                    print_warning "  ZoneMTA: $EXISTING_DKIM_SECRET"
+                    print_warning "  WildDuck: $CURRENT_WD_DKIM"
+                    print_warning "Updating WildDuck dkim.toml to match ZoneMTA..."
+                    # Use a more aggressive replacement that matches any secret value
+                    sed -i "s/secret=\"$CURRENT_WD_DKIM\"/secret=\"$EXISTING_DKIM_SECRET\"/" "$CONFIG_DIR/config/wildduck/dkim.toml"
+                    print_info "✓ Fixed DKIM secret mismatch"
+                fi
+            fi
         fi
 
         print_info "✓ ZoneMTA plugins updated"
