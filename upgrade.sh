@@ -312,6 +312,20 @@ if [ -f "docker-compose.yml" ]; then
 
     print_info "✓ Updated docker-compose.yml with hostname: $CURRENT_HOSTNAME"
     print_info "✓ Updated docker-compose.yml with API hostname: $CURRENT_API_HOSTNAME"
+
+    # Validate and fix empty HostSNI rules (safety check)
+    if grep -q "HostSNI(\`\`)" "$CONFIG_DIR/docker-compose.yml" 2>/dev/null; then
+        print_warning "Found empty HostSNI rules, fixing..."
+        sed -i "s/HostSNI(\`\`)/HostSNI(\`$CURRENT_HOSTNAME\`)/g" "$CONFIG_DIR/docker-compose.yml"
+        print_info "✓ Fixed empty HostSNI rules with: $CURRENT_HOSTNAME"
+    fi
+
+    # Validate HostSNI rules have proper values
+    if grep -q "HostSNI(\`\*\`)" "$CONFIG_DIR/docker-compose.yml" 2>/dev/null; then
+        print_warning "Found wildcard HostSNI rules, fixing for TLS cert resolution..."
+        sed -i "s/HostSNI(\`\*\`)/HostSNI(\`$CURRENT_HOSTNAME\`)/g" "$CONFIG_DIR/docker-compose.yml"
+        print_info "✓ Fixed wildcard HostSNI rules with: $CURRENT_HOSTNAME"
+    fi
 else
     print_warning "Root docker-compose.yml not found, skipping update"
 fi
@@ -462,6 +476,28 @@ if [ -d "default-config" ]; then
         fi
 
         print_info "✓ WildDuck configuration updated"
+    fi
+
+    # Update Haraka configuration
+    if [ -d "default-config/haraka" ]; then
+        print_info "Updating Haraka configuration..."
+
+        # Copy Haraka config files
+        cp default-config/haraka/wildduck.yaml "$CONFIG_DIR/config/haraka/wildduck.yaml" 2>/dev/null || true
+
+        # Set emailDomain for crypto mode validation (must match WildDuck's emailDomain)
+        if [ -n "$EXISTING_EMAIL_DOMAIN" ] && [ "$EXISTING_EMAIL_DOMAIN" != "email.example.com" ]; then
+            sed -i "s/emailDomain: \"example.com\"/emailDomain: \"$EXISTING_EMAIL_DOMAIN\"/" "$CONFIG_DIR/config/haraka/wildduck.yaml"
+            print_info "✓ Haraka emailDomain set to: $EXISTING_EMAIL_DOMAIN"
+        fi
+
+        # Restore SRS secret in Haraka config
+        if [ -n "$EXISTING_SRS_SECRET" ] && [ "$EXISTING_SRS_SECRET" != "secret value" ]; then
+            sed -i "s/secret: \"secret value\"/secret: \"$EXISTING_SRS_SECRET\"/" "$CONFIG_DIR/config/haraka/wildduck.yaml"
+            print_info "✓ Haraka SRS secret restored"
+        fi
+
+        print_info "✓ Haraka configuration updated"
     fi
 
     print_info "✓ Configuration files updated"

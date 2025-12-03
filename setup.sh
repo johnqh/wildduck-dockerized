@@ -738,6 +738,9 @@ echo "Configuring Haraka..."
 sed -i "s/#loopSecret: \"secret value\"/loopSecret: \"$SRS_SECRET\"/" ./config-generated/config/haraka/wildduck.yaml
 sed -i "s/secret: \"secret value\"/secret: \"$SRS_SECRET\"/" ./config-generated/config/haraka/wildduck.yaml
 sed -i "s|url: \".*\"|url: \"$MONGO_URL\"|" ./config-generated/config/haraka/wildduck.yaml
+# Set emailDomain for crypto mode validation (must match WildDuck's emailDomain)
+sed -i "s/emailDomain: \"example.com\"/emailDomain: \"$EMAIL_DOMAIN_TO_USE\"/" ./config-generated/config/haraka/wildduck.yaml
+echo "  → Set emailDomain to: $EMAIL_DOMAIN_TO_USE"
 
 # Configure Haraka SMTP greeting banner
 echo "  → Setting Haraka SMTP greeting to: $HOSTNAME"
