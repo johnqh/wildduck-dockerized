@@ -145,6 +145,8 @@ services:
       - mongo
       - redis
       - rspamd
+    environment:
+      - EMAIL_DOMAIN=${EMAIL_DOMAIN}
     volumes:
       - ./config/haraka:/app/config
       # TLS certificates should be copied into ./config/haraka/ directory
