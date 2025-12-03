@@ -7,6 +7,7 @@ Complete MongoDB setup files for Windows Server deployment of WildDuck mail serv
 This folder contains production-ready MongoDB 7.0 configuration files optimized for high-capacity servers:
 
 **Server Configuration:**
+
 - Total RAM: 128GB (96GB available for native services after 32GB VMware allocation)
 - Storage: 10TB RAID6 SSD (very fast, high IOPS, optimized for maximum document storage)
 - MongoDB allocation: ~47GB RAM (50% of available native RAM)
@@ -17,6 +18,7 @@ This folder contains production-ready MongoDB 7.0 configuration files optimized 
 - **Effective Storage:** ~13TB with zstd compression (30% gain over uncompressed)
 
 **Configuration Files:**
+
 - **`mongod.conf`** - Main MongoDB configuration (performance tuned for 96GB RAM, RAID6 SSD, minimal logging)
 - **`init_database.js`** - Database initialization script (creates databases, users, collections, indexes)
 - **`backup_database.ps1`** - Automated backup script with compression and rotation (30-day retention, auto log cleanup)
@@ -25,11 +27,13 @@ This folder contains production-ready MongoDB 7.0 configuration files optimized 
 **Storage Optimization for Maximum Documents:**
 
 **Compression Strategy:**
+
 - **zstd compression:** 30% better than snappy = 30% more emails in same space
 - **Index compression:** 20-50% savings on index storage
 - **Combined effect:** ~13TB effective storage from 10TB physical
 
 **What This Means:**
+
 - **10TB physical** → **~13TB effective** with zstd compression
 - Store millions of emails per WildDuck user account
 - Each email (avg 50KB) → ~260 million emails possible
@@ -37,6 +41,7 @@ This folder contains production-ready MongoDB 7.0 configuration files optimized 
 - Indexes use 20-50% less space
 
 **RAID6 SSD Benefits:**
+
 - **GridFS Performance:** Fast attachment storage/retrieval
 - **Random I/O:** Excellent for millions of small email documents
 - **High IOPS:** Handles thousands of concurrent IMAP/SMTP operations
@@ -54,7 +59,7 @@ This folder contains production-ready MongoDB 7.0 configuration files optimized 
 
 ### 2. Deploy Configuration File
 
-**Step 1: Locate MongoDB Configuration File**
+#### Step 1: Locate MongoDB Configuration File
 
 Open PowerShell as Administrator:
 
@@ -66,7 +71,7 @@ Get-Service MongoDB
 # C:\Program Files\MongoDB\Server\7.0\bin\mongod.cfg
 ```
 
-**Step 2: Backup Existing Configuration**
+#### Step 2: Backup Existing Configuration
 
 ```powershell
 # Navigate to MongoDB bin directory
@@ -76,7 +81,7 @@ cd "C:\Program Files\MongoDB\Server\7.0\bin"
 Copy-Item mongod.cfg mongod.cfg.backup
 ```
 
-**Step 3: Copy New Configuration File**
+#### Step 3: Copy New Configuration File
 
 Copy the configuration file from this folder:
 
@@ -85,7 +90,7 @@ Copy the configuration file from this folder:
 Copy-Item "path\to\wildduck-dockerized\mongodb\mongod.conf" "C:\Program Files\MongoDB\Server\7.0\bin\mongod.cfg" -Force
 ```
 
-**Step 4: Create Required Directories**
+#### Step 4: Create Required Directories
 
 ```powershell
 # Create data directory
@@ -105,7 +110,7 @@ $Acl.AddAccessRule($AccessRule)
 Set-Acl "C:\MongoDB" $Acl
 ```
 
-**Step 5: Customize for Your Environment**
+#### Step 5: Customize for Your Environment
 
 The configuration file is pre-tuned for your high-capacity server:
 
@@ -137,7 +142,7 @@ The configuration file is pre-tuned for your high-capacity server:
    - `slowOpSampleRate: 0.1` - Sample only 10% of slow operations
    - Profiling database kept minimal for disk space conservation
 
-**Step 6: Restart MongoDB**
+#### Step 6: Restart MongoDB
 
 ```powershell
 # Restart MongoDB service
@@ -152,7 +157,7 @@ Get-Content "C:\MongoDB\log\mongod.log" -Tail 50
 
 ### 3. Initialize Databases and Users
 
-**Step 1: First-Time Setup (Without Authentication)**
+#### Step 1: First-Time Setup (Without Authentication)
 
 If this is a fresh MongoDB installation without authentication enabled yet:
 
@@ -172,7 +177,7 @@ cd "C:\Program Files\MongoDB\Server\7.0\bin"
 # Then restart: Restart-Service MongoDB
 ```
 
-**Step 2: Run Initialization Script**
+#### Step 2: Run Initialization Script
 
 ```powershell
 # Navigate to MongoDB bin directory
@@ -183,6 +188,7 @@ cd "C:\Program Files\MongoDB\Server\7.0\bin"
 ```
 
 The script will create:
+
 - Admin user: `admin` / `admin-password-change-me`
 - WildDuck database: `wildduck`
 - WildDuck user: `wildduck` / `wildduck-password`
@@ -190,7 +196,7 @@ The script will create:
 - Zone-MTA user: `zonemta` / `zonemta-password` (optional)
 - Essential collections and indexes
 
-**Step 3: Change Default Passwords (CRITICAL!)**
+#### Step 3: Change Default Passwords (CRITICAL!)
 
 ```powershell
 # Connect as admin
@@ -209,7 +215,7 @@ db.changeUserPassword("zonemta", "your-strong-zonemta-password")
 exit
 ```
 
-**Step 4: Verify Setup**
+#### Step 4: Verify Setup
 
 ```powershell
 # Test connection with new credentials
@@ -223,14 +229,14 @@ exit
 
 ### 4. Set Up Automated Backups
 
-**Step 1: Copy Backup Script**
+#### Step 1: Copy Backup Script
 
 ```powershell
 # Copy backup script to MongoDB directory
 Copy-Item "path\to\wildduck-dockerized\mongodb\backup_database.ps1" "C:\MongoDB\backup_database.ps1"
 ```
 
-**Step 2: Configure Authentication**
+#### Step 2: Configure Authentication
 
 Set MongoDB admin password as environment variable:
 
@@ -245,7 +251,7 @@ $env:MONGO_PASSWORD = "your-strong-admin-password"
 [System.Environment]::SetEnvironmentVariable('MONGO_PASSWORD', 'your-strong-admin-password', 'Machine')
 ```
 
-**Step 3: Test Backup Script**
+#### Step 3: Test Backup Script
 
 ```powershell
 # Run backup manually to test
@@ -256,7 +262,7 @@ cd "C:\MongoDB"
 Get-ChildItem "C:\MongoDB\backups" | Sort-Object LastWriteTime -Descending
 ```
 
-**Step 4: Schedule Daily Backups**
+#### Step 4: Schedule Daily Backups
 
 Create scheduled task for daily backups at 2 AM:
 
@@ -294,14 +300,14 @@ Get-ScheduledTask -TaskName "MongoDB-WildDuck-Backup" | Get-ScheduledTaskInfo
 
 To minimize disk usage, schedule weekly log cleanup:
 
-**Step 1: Copy Cleanup Script**
+#### Step 1: Copy Cleanup Script
 
 ```powershell
 # Copy cleanup script to MongoDB directory
 Copy-Item "path\to\wildduck-dockerized\mongodb\cleanup_logs.ps1" "C:\MongoDB\cleanup_logs.ps1"
 ```
 
-**Step 2: Test Cleanup Script**
+#### Step 2: Test Cleanup Script
 
 ```powershell
 # Run cleanup manually to test
@@ -312,7 +318,7 @@ cd "C:\MongoDB"
 .\cleanup_logs.ps1 -RetentionDays 7
 ```
 
-**Step 3: Schedule Weekly Cleanup**
+#### Step 3: Schedule Weekly Cleanup
 
 Create scheduled task for weekly cleanup (Sundays at 3 AM):
 
@@ -424,16 +430,19 @@ netstat -an | Select-String ":27017"
 ### mongod.conf Settings
 
 **Network Settings**:
+
 - `port: 27017` - Default MongoDB port
 - `bindIp: 0.0.0.0` - Listen on all interfaces (CHANGE for production!)
 - `maxIncomingConnections: 1000` - Maximum concurrent connections
 - `compression: snappy,zstd` - Wire protocol compression
 
 **Security Settings**:
+
 - `authorization: enabled` - Require authentication
 - `javascriptEnabled: false` - Disable server-side JavaScript (better security)
 
 **Storage Settings**:
+
 - `dbPath: C:\MongoDB\data` - Database storage location
 - `engine: wiredTiger` - Storage engine (default and recommended)
 - `cacheSizeGB: 3` - WiredTiger cache size (adjust based on RAM)
@@ -441,11 +450,13 @@ netstat -an | Select-String ":27017"
 - `blockCompressor: snappy` - Collection compression
 
 **Logging**:
+
 - `path: C:\MongoDB\log\mongod.log` - Log file location
 - `verbosity: 0` - Log level (0=Info, 1-5=Debug)
 - `logRotate: reopen` - Log rotation method
 
 **Performance Profiling**:
+
 - `mode: slowOp` - Log slow operations only
 - `slowOpThresholdMs: 100` - Operations slower than 100ms are logged
 
@@ -454,18 +465,21 @@ netstat -an | Select-String ":27017"
 Creates and configures:
 
 **Admin User**:
+
 - Username: `admin`
 - Password: `admin-password-change-me` (CHANGE THIS!)
 - Roles: `root` (full admin access)
 - Database: `admin`
 
 **WildDuck User**:
+
 - Username: `wildduck`
 - Password: `wildduck-password` (CHANGE THIS!)
 - Roles: `dbOwner` on `wildduck` database
 - Database: `wildduck`
 
 **Collections Created**:
+
 - `users` - User accounts
 - `addresses` - Email addresses
 - `mailboxes` - IMAP folders
@@ -479,6 +493,7 @@ Creates and configures:
 - `auditlog` - Audit log
 
 **Indexes Created**:
+
 - User indexes: `username`, `unameview`
 - Address indexes: `addrview`, `user`
 - Mailbox indexes: `user+path`
@@ -487,6 +502,7 @@ Creates and configures:
 ### backup_database.ps1
 
 Features:
+
 - Single database or full backup (all databases)
 - Gzip compression for efficient storage
 - Automatic .zip archive creation
@@ -500,6 +516,7 @@ Backup location: `C:\MongoDB\backups\`
 Backup filename format: `wildduck_YYYY-MM-DD_HHmmss.zip`
 
 Usage examples:
+
 ```powershell
 # Backup wildduck database (default)
 .\backup_database.ps1
@@ -795,25 +812,25 @@ Optimize performance:
 
 ### Local Development (Windows)
 
-```
+```text
 mongodb://wildduck:password@localhost:27017/wildduck?authSource=wildduck
 ```
 
 ### Docker on Windows Host
 
-```
+```text
 mongodb://wildduck:password@host.docker.internal:27017/wildduck?authSource=wildduck
 ```
 
 ### Remote Access
 
-```
+```text
 mongodb://wildduck:password@YOUR_SERVER_IP:27017/wildduck?authSource=wildduck
 ```
 
 ### With Replica Set (High Availability)
 
-```
+```text
 mongodb://wildduck:password@server1:27017,server2:27017,server3:27017/wildduck?authSource=wildduck&replicaSet=wildduck-rs
 ```
 
@@ -832,7 +849,7 @@ Common options you can add to connection strings:
 
 Example with all options:
 
-```
+```text
 mongodb://wildduck:password@server1:27017,server2:27017/wildduck?authSource=wildduck&replicaSet=wildduck-rs&retryWrites=true&w=majority&readPreference=primaryPreferred&maxPoolSize=100&appName=WildDuck
 ```
 
@@ -922,6 +939,7 @@ For production environments requiring high availability:
    - Secondary 2 or Arbiter: Voting member for elections
 
 2. **Configure Replica Set in mongod.cfg**:
+
    ```yaml
    replication:
      replSetName: wildduck-rs
@@ -929,6 +947,7 @@ For production environments requiring high availability:
    ```
 
 3. **Initialize Replica Set**:
+
    ```javascript
    rs.initiate({
      _id: "wildduck-rs",
@@ -941,7 +960,8 @@ For production environments requiring high availability:
    ```
 
 4. **Update Connection Strings**:
-   ```
+
+   ```text
    mongodb://wildduck:password@server1:27017,server2:27017,server3:27017/wildduck?authSource=wildduck&replicaSet=wildduck-rs
    ```
 
@@ -957,6 +977,7 @@ For production environments requiring high availability:
 ## 📖 Additional Resources
 
 ### MongoDB Documentation
+
 - [MongoDB 7.0 Documentation](https://docs.mongodb.com/manual/)
 - [Configuration File Options](https://docs.mongodb.com/manual/reference/configuration-options/)
 - [WiredTiger Storage Engine](https://docs.mongodb.com/manual/core/wiredtiger/)
@@ -965,11 +986,13 @@ For production environments requiring high availability:
 - [Replication](https://docs.mongodb.com/manual/replication/)
 
 ### WildDuck Documentation
+
 - [GitHub Repository](https://github.com/nodemailer/wildduck)
 - [Official Website](https://wildduck.email/)
 - [API Documentation](https://docs.wildduck.email/)
 
 ### Tools
+
 - [MongoDB Compass](https://www.mongodb.com/products/compass) - GUI for MongoDB
 - [MongoDB Ops Manager](https://www.mongodb.com/products/ops-manager) - Monitoring and automation
 - [Studio 3T](https://studio3t.com/) - MongoDB IDE
@@ -977,21 +1000,25 @@ For production environments requiring high availability:
 ## 🔄 Maintenance Tasks
 
 ### Daily
+
 - Automated backups (via scheduled task)
 - Monitor service status
 
 ### Weekly
+
 - Review backup logs for failures
 - Check disk space (data, logs, backups)
 - Review slow query log (`db.system.profile`)
 
 ### Monthly
+
 - Rotate old backups manually if needed
 - Review and update user passwords per security policy
 - Update MongoDB to latest patch version
 - Review firewall rules and access logs
 
 ### Quarterly
+
 - Compact databases: `db.runCommand({ compact: "collection_name" })`
 - Review and optimize indexes
 - Test backup restoration process

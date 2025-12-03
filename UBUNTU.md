@@ -1,4 +1,4 @@
-## Installing on Ubuntu Server
+# Installing on Ubuntu Server
 
 Changes DNS, and have the A record pointing domain to the server IP
 sudo apt update

@@ -29,7 +29,7 @@ Keep in mind that the provided setup script is a basic setup that is intended to
 > Note! Haraka handles certificates completely separately. So in order to have Haraka with TLS you will need to either issue certs for Haraka/SMTP domain beforehand and include them in the specified folder that is set in the `docker-compose.yml` file or if using the provided `setup.sh` setup script there will be a cron created for you that will handle updating the haraka certs.
 
 Additionally, the provided setup currently uses a very basic setup where all the services are ran on the same domain. Ideally you'd want to run outbound smtps (port 465), imap, pop3, inbound smtp (port 25 Haraka), on different domains and have separate certs for them (will be handled by Traefik automatically, except for Haraka). For database and redis sharding refer to Wildduck and Zone-MTA documentation.  
-The provided setup also sets you up with basic DNS settings that "work right out the box". Additionally the provided setup script can create the first user for you. For user creation refer to Wildduck documentation at https://docs.wildduck.email.
+The provided setup also sets you up with basic DNS settings that "work right out the box". Additionally the provided setup script can create the first user for you. For user creation refer to Wildduck documentation at <https://docs.wildduck.email>.
 
 ## Connecting Thunderbird if using self-signed certificates
 
@@ -79,7 +79,8 @@ Configuration files for all services reside in `./config-generated`. Alter them 
   - you will need to add 4 dns records in you DNS manger
   - the 4 records are at very last section of the file called TL;DR
   - the section is formatted following way
-    ```
+
+    ```text
     <RECORD_NAME> IN <TYPE> <VALUE>
     ```
 
@@ -114,6 +115,7 @@ LOG_LEVEL=info
 ### API Endpoint
 
 The indexer API is accessible at:
+
 - **External**: `https://HOSTNAME/idx` (routed through Traefik)
 - **Internal**: `http://mail_box_indexer:42069` (from other containers)
 - **Local testing**: Uncomment port mapping in docker-compose.yml for `http://localhost:42069`

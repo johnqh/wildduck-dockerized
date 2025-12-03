@@ -7,6 +7,7 @@ Complete PostgreSQL setup files for Windows Server deployment of the Mail Box In
 This folder contains production-ready PostgreSQL 17 configuration files optimized for high-capacity servers:
 
 **Server Configuration:**
+
 - Total RAM: 128GB (96GB available for native services after 32GB VMware allocation)
 - Storage: 10TB RAID6 SSD (very fast, high IOPS, optimized for maximum email storage)
 - PostgreSQL allocation: ~48GB RAM (50% of available native RAM)
@@ -16,6 +17,7 @@ This folder contains production-ready PostgreSQL 17 configuration files optimize
 - **SSD Performance:** Excellent random I/O, low latency, high throughput
 
 **Configuration Files:**
+
 - **`postgresql.conf`** - Main PostgreSQL configuration (performance tuned for 96GB RAM)
 - **`pg_hba.conf`** - Client authentication and security rules
 - **`init_database.sql`** - Database initialization script (creates database, user, extensions)
@@ -32,7 +34,7 @@ This folder contains production-ready PostgreSQL 17 configuration files optimize
 
 ### 2. Deploy Configuration Files
 
-**Step 1: Locate PostgreSQL Data Directory**
+#### Step 1: Locate PostgreSQL Data Directory
 
 Open PowerShell as Administrator:
 
@@ -45,7 +47,7 @@ Get-Service postgresql-x64-17
 # Option B: C:\Program Files\PostgreSQL\17\data
 ```
 
-**Step 2: Backup Existing Configuration**
+#### Step 2: Backup Existing Configuration
 
 ```powershell
 # Navigate to PostgreSQL data directory
@@ -56,7 +58,7 @@ Copy-Item postgresql.conf postgresql.conf.backup
 Copy-Item pg_hba.conf pg_hba.conf.backup
 ```
 
-**Step 3: Copy New Configuration Files**
+#### Step 3: Copy New Configuration Files
 
 Copy the configuration files from this folder to your PostgreSQL data directory:
 
@@ -68,7 +70,7 @@ Copy-Item "path\to\wildduck-dockerized\postgres\postgresql.conf" "C:\PostgreSQL\
 Copy-Item "path\to\wildduck-dockerized\postgres\pg_hba.conf" "C:\PostgreSQL\data\pg_hba.conf" -Force
 ```
 
-**Step 4: Customize for Your Environment**
+#### Step 4: Customize for Your Environment
 
 The configuration files are pre-tuned for your high-capacity server:
 
@@ -88,7 +90,7 @@ The configuration files are pre-tuned for your high-capacity server:
    - For remote access: Add specific IP addresses or subnets
    - See inline comments in pg_hba.conf for examples
 
-**Step 5: Restart PostgreSQL**
+#### Step 5: Restart PostgreSQL
 
 ```powershell
 # Restart PostgreSQL service
@@ -103,7 +105,7 @@ Get-Content "C:\PostgreSQL\data\log\postgresql-*.log" -Tail 50
 
 ### 3. Initialize Database
 
-**Step 1: Run Initialization Script**
+#### Step 1: Run Initialization Script
 
 Open PowerShell and run the SQL script:
 
@@ -115,7 +117,7 @@ cd "C:\Program Files\PostgreSQL\17\bin"
 .\psql.exe -U postgres -f "path\to\wildduck-dockerized\postgres\init_database.sql"
 ```
 
-**Step 2: Verify Database Creation**
+#### Step 2: Verify Database Creation
 
 ```powershell
 # Connect to database
@@ -131,7 +133,7 @@ cd "C:\Program Files\PostgreSQL\17\bin"
 .\psql.exe -U postgres -d mail_box_indexer -c "\dx"
 ```
 
-**Step 3: Change Default Password (CRITICAL!)**
+#### Step 3: Change Default Password (CRITICAL!)
 
 ```powershell
 # Connect as postgres
@@ -142,7 +144,7 @@ ALTER USER ponder WITH PASSWORD 'your-strong-password-here';
 \q
 ```
 
-**Step 4: Test Connection**
+#### Step 4: Test Connection
 
 ```powershell
 # Test connection as ponder user
@@ -158,21 +160,21 @@ SELECT version();
 
 ### 4. Set Up Automated Backups
 
-**Step 1: Create Backup Directory**
+#### Step 1: Create Backup Directory
 
 ```powershell
 # Create backup directory
 New-Item -ItemType Directory -Path "C:\PostgreSQL\backups" -Force
 ```
 
-**Step 2: Copy Backup Script**
+#### Step 2: Copy Backup Script
 
 ```powershell
 # Copy backup script to a permanent location
 Copy-Item "path\to\wildduck-dockerized\postgres\backup_database.ps1" "C:\PostgreSQL\backup_database.ps1"
 ```
 
-**Step 3: Configure Password Authentication**
+#### Step 3: Configure Password Authentication
 
 Create a `.pgpass` file for password-less backups:
 
@@ -192,7 +194,7 @@ Set-Content -Path $pgpassPath -Value $pgpassContent
 [System.Environment]::SetEnvironmentVariable('PGPASSWORD', 'your-strong-password-here', 'User')
 ```
 
-**Step 4: Test Backup Script**
+#### Step 4: Test Backup Script
 
 ```powershell
 # Run backup manually to test
@@ -203,7 +205,7 @@ cd "C:\PostgreSQL"
 Get-ChildItem "C:\PostgreSQL\backups" | Sort-Object LastWriteTime -Descending
 ```
 
-**Step 5: Schedule with Task Scheduler**
+#### Step 5: Schedule with Task Scheduler
 
 Create scheduled task for daily backups at 2 AM:
 
@@ -281,12 +283,14 @@ docker exec -it mail_box_indexer sh -c 'psql $DATABASE_URL -c "SELECT version();
 ### postgresql.conf Settings
 
 **Memory Settings** (tuned for 96GB available RAM):
+
 - `shared_buffers = 24GB` - 25% of available RAM
 - `effective_cache_size = 72GB` - 75% of available RAM
 - `work_mem = 64MB` - Per-operation memory (for 500 connections)
 - `maintenance_work_mem = 4GB` - For VACUUM, CREATE INDEX on large tables
 
 **Performance Settings** (optimized for RAID6 SSD):
+
 - `max_connections = 500` - High-capacity concurrent connections
 - `random_page_cost = 1.0` - Optimized for SSD (eliminates seek time penalty)
 - `effective_io_concurrency = 300` - High for RAID6 SSD (excellent parallel I/O)
@@ -297,12 +301,14 @@ docker exec -it mail_box_indexer sh -c 'psql $DATABASE_URL -c "SELECT version();
 - `max_parallel_workers = 16` - Total parallel workers
 
 **WAL Settings** (for 10TB storage):
+
 - `max_wal_size = 16GB` - Maximum WAL size between checkpoints
 - `min_wal_size = 4GB` - Minimum WAL size to keep
 - `wal_buffers = 64MB` - WAL buffer size
 - `temp_file_limit = 50GB` - Per-session temp file limit
 
 **Logging** (minimized for disk space):
+
 - `log_min_duration_statement = 5000` - Only log queries slower than 5 seconds
 - `log_connections = off` - Connection logging disabled (saves significant disk space)
 - `log_disconnections = off` - Disconnection logging disabled
@@ -311,25 +317,30 @@ docker exec -it mail_box_indexer sh -c 'psql $DATABASE_URL -c "SELECT version();
 - Log retention: 1 day only (rotates and overwrites daily)
 
 **Timeouts**:
+
 - `statement_timeout = 30s` - Prevent runaway queries
 - `idle_in_transaction_session_timeout = 60s` - Clean up stale connections
 
 **Extensions**:
+
 - `shared_preload_libraries = 'pg_stat_statements'` - Query performance monitoring
 
 ### pg_hba.conf Authentication
 
 **Local Connections**:
+
 - Unix sockets (Linux/Mac): `scram-sha-256`
 - TCP/IP localhost (127.0.0.1): `scram-sha-256`
 
 **Docker Connections**:
+
 - Network range: 172.17.0.0/16
 - User: `ponder`
 - Database: `mail_box_indexer`
 - Method: `scram-sha-256`
 
 **Remote Connections** (customize these!):
+
 - **IMPORTANT**: Replace placeholder IPs with actual IPs
 - Use specific IPs (e.g., 192.168.1.100/32) not 0.0.0.0/0
 - Consider using `hostssl` for SSL-required connections
@@ -338,6 +349,7 @@ docker exec -it mail_box_indexer sh -c 'psql $DATABASE_URL -c "SELECT version();
 ### init_database.sql
 
 Creates:
+
 - Database: `mail_box_indexer` (UTF8, C collation)
 - User: `ponder` (with default password 'password')
 - Extensions: pgcrypto, uuid-ossp, pg_trgm, btree_gin, btree_gist, pg_stat_statements
@@ -348,6 +360,7 @@ Creates:
 ### backup_database.ps1
 
 Features:
+
 - Custom format compressed backups (pg_dump -F c)
 - Automatic backup cleanup (30-day retention)
 - **Automatic log cleanup (7-day retention)** - Minimizes disk usage
@@ -360,6 +373,7 @@ Backup location: `C:\PostgreSQL\backups\`
 Backup filename format: `mail_box_indexer_YYYY-MM-DD_HHmmss.backup`
 
 **Disk Space Management**:
+
 - Backup logs automatically cleaned after 7 days
 - Only essential backup logs retained
 - Minimizes disk usage for maximum user account storage
@@ -539,40 +553,48 @@ psql postgresql://ponder:password@host.docker.internal:5432/mail_box_indexer
 ## 📚 Additional Resources
 
 ### PostgreSQL Documentation
+
 - [PostgreSQL 17 Documentation](https://www.postgresql.org/docs/17/)
 - [Server Configuration](https://www.postgresql.org/docs/17/runtime-config.html)
 - [Client Authentication](https://www.postgresql.org/docs/17/auth-pg-hba-conf.html)
 - [Backup and Restore](https://www.postgresql.org/docs/17/backup.html)
 
 ### Performance Tuning
+
 - [PgTune](https://pgtune.leopard.in.ua/) - Configuration calculator
 - [Performance Tips](https://wiki.postgresql.org/wiki/Performance_Optimization)
 
 ### Monitoring
+
 - [pg_stat_statements](https://www.postgresql.org/docs/17/pgstatstatements.html)
 - [pgAdmin 4](https://www.pgadmin.org/) - GUI administration tool
 
 ### Security
+
 - [Security Best Practices](https://www.postgresql.org/docs/17/ssl-tcp.html)
 - [Authentication Methods](https://www.postgresql.org/docs/17/auth-methods.html)
 
 ## 🔄 Maintenance Tasks
 
 ### Daily
+
 - Automated backups (via scheduled task)
 
 ### Weekly
+
 - Review backup logs for failures
 - Check disk space for backups and data
 - Review slow query log
 
 ### Monthly
+
 - Rotate old backups manually if needed
 - Review pg_stat_statements for optimization opportunities
 - Update passwords per security policy
 - Review and update pg_hba.conf access rules
 
 ### Quarterly
+
 - Vacuum database manually: `VACUUM ANALYZE;`
 - Review and update postgresql.conf settings
 - Test backup restoration process
@@ -581,22 +603,26 @@ psql postgresql://ponder:password@host.docker.internal:5432/mail_box_indexer
 ## 📝 Connection Strings
 
 ### Local Development (Windows)
-```
+
+```text
 postgresql://ponder:password@localhost:5432/mail_box_indexer
 ```
 
 ### Docker on Windows Host
-```
+
+```text
 postgresql://ponder:password@host.docker.internal:5432/mail_box_indexer
 ```
 
 ### Remote Access
-```
+
+```text
 postgresql://ponder:password@YOUR_SERVER_IP:5432/mail_box_indexer
 ```
 
 ### SSL/TLS Connection (if configured)
-```
+
+```text
 postgresql://ponder:password@YOUR_SERVER_IP:5432/mail_box_indexer?sslmode=require
 ```
 
