@@ -423,6 +423,47 @@ if [ -d "default-config" ]; then
         print_info "✓ ZoneMTA plugins updated"
     fi
 
+    # Update WildDuck configuration files
+    if [ -d "default-config/wildduck" ]; then
+        print_info "Updating WildDuck configuration..."
+
+        # Extract existing emailDomain BEFORE copying new files
+        EXISTING_EMAIL_DOMAIN=""
+        if [ -f "$CONFIG_DIR/config/wildduck/api.toml" ]; then
+            EXISTING_EMAIL_DOMAIN=$(grep 'emailDomain' "$CONFIG_DIR/config/wildduck/api.toml" 2>/dev/null | head -1 | sed -n 's/.*emailDomain[[:space:]]*=[[:space:]]*"\([^"]*\)".*/\1/p' || echo "")
+        fi
+        # Fallback to default.toml
+        if [ -z "$EXISTING_EMAIL_DOMAIN" ] || [ "$EXISTING_EMAIL_DOMAIN" = "email.example.com" ]; then
+            if [ -f "$CONFIG_DIR/config/wildduck/default.toml" ]; then
+                EXISTING_EMAIL_DOMAIN=$(grep 'emailDomain' "$CONFIG_DIR/config/wildduck/default.toml" 2>/dev/null | head -1 | sed -n 's/.*emailDomain[[:space:]]*=[[:space:]]*"\([^"]*\)".*/\1/p' || echo "")
+            fi
+        fi
+        # Fallback to MAIL_DOMAIN derived from hostname
+        if [ -z "$EXISTING_EMAIL_DOMAIN" ] || [ "$EXISTING_EMAIL_DOMAIN" = "email.example.com" ]; then
+            EXISTING_EMAIL_DOMAIN="$MAIL_DOMAIN"
+        fi
+
+        # Copy new WildDuck config files (overwrite to get latest features)
+        cp default-config/wildduck/api.toml "$CONFIG_DIR/config/wildduck/api.toml" 2>/dev/null || true
+        cp default-config/wildduck/default.toml "$CONFIG_DIR/config/wildduck/default.toml" 2>/dev/null || true
+        cp default-config/wildduck/dkim.toml "$CONFIG_DIR/config/wildduck/dkim.toml" 2>/dev/null || true
+
+        # Restore/set emailDomain in both config files
+        if [ -n "$EXISTING_EMAIL_DOMAIN" ] && [ "$EXISTING_EMAIL_DOMAIN" != "email.example.com" ]; then
+            sed -i "s/emailDomain = \"email.example.com\"/emailDomain = \"$EXISTING_EMAIL_DOMAIN\"/" "$CONFIG_DIR/config/wildduck/api.toml"
+            sed -i "s/emailDomain=\"email.example.com\"/emailDomain=\"$EXISTING_EMAIL_DOMAIN\"/" "$CONFIG_DIR/config/wildduck/default.toml"
+            print_info "✓ WildDuck emailDomain set to: $EXISTING_EMAIL_DOMAIN"
+        fi
+
+        # Restore DKIM secret in dkim.toml
+        if [ -n "$EXISTING_DKIM_SECRET" ] && [ "$EXISTING_DKIM_SECRET" != "super secret key" ]; then
+            sed -i "s/secret=\"super secret key\"/secret=\"$EXISTING_DKIM_SECRET\"/" "$CONFIG_DIR/config/wildduck/dkim.toml"
+            print_info "✓ DKIM secret restored in WildDuck dkim.toml"
+        fi
+
+        print_info "✓ WildDuck configuration updated"
+    fi
+
     print_info "✓ Configuration files updated"
 else
     print_warning "default-config directory not found, skipping config update"

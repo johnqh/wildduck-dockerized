@@ -589,6 +589,8 @@ source .env
 # Use WILDDUCK_EMAILDOMAIN from Doppler if available, otherwise use prompted MAILDOMAIN
 EMAIL_DOMAIN_TO_USE=${WILDDUCK_EMAILDOMAIN:-$MAILDOMAIN}
 sed -i "s/emailDomain=\"email.example.com\"/emailDomain=\"$EMAIL_DOMAIN_TO_USE\"/" ./config-generated/config/wildduck/default.toml
+# IMPORTANT: Also set emailDomain in api.toml for crypto mode user creation
+sed -i "s/emailDomain = \"email.example.com\"/emailDomain = \"$EMAIL_DOMAIN_TO_USE\"/" ./config-generated/config/wildduck/api.toml
 echo "✓ Set emailDomain to: $EMAIL_DOMAIN_TO_USE"
 
 # Use Doppler values if available, otherwise generate randomly
