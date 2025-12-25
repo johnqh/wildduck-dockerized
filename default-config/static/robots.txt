@@ -1,0 +1,5 @@
+# robots.txt for API domain
+# Disallow all crawlers from indexing this API
+
+User-agent: *
+Disallow: /

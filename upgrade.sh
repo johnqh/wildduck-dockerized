@@ -478,6 +478,15 @@ if [ -d "default-config" ]; then
         print_info "✓ WildDuck configuration updated"
     fi
 
+    # Update static files (robots.txt for API domain)
+    if [ -d "default-config/static" ]; then
+        print_info "Updating static files (robots.txt)..."
+        mkdir -p "$CONFIG_DIR/config/static"
+        cp default-config/static/robots.txt "$CONFIG_DIR/config/static/" 2>/dev/null || true
+        cp default-config/static/nginx.conf "$CONFIG_DIR/config/static/" 2>/dev/null || true
+        print_info "✓ Static files updated"
+    fi
+
     # Update Haraka configuration
     if [ -d "default-config/haraka" ]; then
         print_info "Updating Haraka configuration..."
