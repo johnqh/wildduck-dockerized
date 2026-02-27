@@ -26,3 +26,6 @@ frontend-config
 *-nameserver.txt
 *.email-nameserver.txt
 .deployment-config
+
+# Claude Code local settings
+.claude/settings.local.json
