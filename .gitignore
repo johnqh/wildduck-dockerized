@@ -1,15 +1,14 @@
 #node files
-
 node_modules
+bun.lock
+package.json
+package-lock.json
 
 #env
 .env
 .env.local
 .env.*.local
 .doppler-token
-
-#jest
-test-results
 
 config
 .env
