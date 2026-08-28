@@ -1,5 +1,10 @@
 # wildduck-dockerized - AI Development Guide
 
+> **Git policy — never auto-commit or auto-push.** Leave your work in the working tree.
+> Run `git commit`, `git push`, `gh pr create`, or `scripts/push_all.sh` **only when the user
+> explicitly asks in that turn**. Approval for an earlier change does not carry forward, and
+> finishing a task is not permission to commit it.
+
 ## Overview
 
 Complete Docker-based deployment infrastructure for the 0xmail email system. Orchestrates 10 containerized services into a production-ready email platform with blockchain wallet authentication, one-command setup, automatic TLS via Let's Encrypt, and multi-chain indexing.
@@ -227,3 +232,7 @@ Docker socket mount (read-only) for auto-discovery via labels. Services opt-in w
 - **WildDuck API** at `/api`: 118+ endpoints for users, mailboxes, messages, DKIM, webhooks, 2FA. Auth: `X-Access-Token` header.
 - **Indexer API** at `/idx`: 36+ endpoints + GraphQL for OAuth 2.0, wallet auth, points, referrals, KYC, blockchain status. Auth: wallet signature or Bearer token.
 - Full reference: `ENDPOINTS.md`
+
+## Git Workflow
+
+- Do not use feature branches for code changes. Always stay on the current branch.
